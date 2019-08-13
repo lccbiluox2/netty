@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Abstract base class for {@link EventExecutor}s that want to support scheduling.
+ *
+ * 抽象基础类(想要支持定时)
  */
 public abstract class AbstractScheduledEventExecutor extends AbstractEventExecutor {
 

@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A pool of {@link Constant}s.
  *
  * @param <T> the type of the constant
+ *
+ * 常量池
  */
 public abstract class ConstantPool<T extends Constant<T>> {
 
@@ -64,6 +66,8 @@ public abstract class ConstantPool<T extends Constant<T>> {
      * Get existing constant by name or creates new one if not exists. Threadsafe
      *
      * @param name the name of the {@link Constant}
+     *
+     * 根据 name 获取已存在的常量 或者 如果不存在则创建一个新的，线程安全
      */
     private T getOrCreate(String name) {
         T constant = constants.get(name);
@@ -99,6 +103,8 @@ public abstract class ConstantPool<T extends Constant<T>> {
      * Creates constant by name or throws exception. Threadsafe
      *
      * @param name the name of the {@link Constant}
+     *
+     * 根据 name 创建常量 或者 抛出异常，线程安全
      */
     private T createOrThrow(String name) {
         T constant = constants.get(name);

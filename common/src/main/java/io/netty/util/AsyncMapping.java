@@ -23,6 +23,9 @@ public interface AsyncMapping<IN, OUT> {
     /**
      * Returns the {@link Future} that will provide the result of the mapping. The given {@link Promise} will
      * be fulfilled when the result is available.
+     *
+     * 返回的 Future 会提供 mapping 的结果。
+     * 当有结果时，参数 promise 会被满足
      */
     Future<OUT> map(IN input, Promise<OUT> promise);
 }

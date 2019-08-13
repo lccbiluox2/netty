@@ -40,6 +40,7 @@ import java.util.Set;
 /**
  * Helper class to load JNI resources.
  *
+ * 加载 JNI 资源的帮助类
  */
 public final class NativeLibraryLoader {
 

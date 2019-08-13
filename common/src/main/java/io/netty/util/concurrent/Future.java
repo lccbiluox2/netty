@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The result of an asynchronous operation.
+ * 异步操作的结果
  */
 @SuppressWarnings("ClassNameSameAsAncestorName")
 public interface Future<V> extends java.util.concurrent.Future<V> {
@@ -28,11 +29,14 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
     /**
      * Returns {@code true} if and only if the I/O operation was completed
      * successfully.
+     * 如果 IO 操作成功完成，返回 true
      */
     boolean isSuccess();
 
     /**
      * returns {@code true} if and only if the operation can be cancelled via {@link #cancel(boolean)}.
+     *
+     * 当且仅当操作可以取消，返回 true
      */
     boolean isCancellable();
 
@@ -43,6 +47,10 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * @return the cause of the failure.
      *         {@code null} if succeeded or this future is not
      *         completed yet.
+     *
+     * 如果 IO 操作失败，返回 IO 操作失败的原因
+     * 如果操作成功或者 future 没有完成，返回 null
+     *
      */
     Throwable cause();
 
@@ -51,6 +59,9 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * specified listener is notified when this future is
      * {@linkplain #isDone() done}.  If this future is already
      * completed, the specified listener is notified immediately.
+     *
+     * 将指定的侦听器添加到此 future, 当这个 future 处于 isDone() 状态的时候指定的监听器会接到通知
+     * 如果这个 future 已经完成后，指定的侦听器会立即收到通知
      */
     Future<V> addListener(GenericFutureListener<? extends Future<? super V>> listener);
 
@@ -59,6 +70,9 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * specified listeners are notified when this future is
      * {@linkplain #isDone() done}.  If this future is already
      * completed, the specified listeners are notified immediately.
+     *
+     * 将指定的多个侦听器添加到此 future, 当这个 future 处于 isDone() 状态的时候指定的多个监听器都会接到通知
+     * 如果这个 future 已经完成后，指定的多个侦听器会立即都收到通知
      */
     Future<V> addListeners(GenericFutureListener<? extends Future<? super V>>... listeners);
 
@@ -83,12 +97,16 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
     /**
      * Waits for this future until it is done, and rethrows the cause of the failure if this future
      * failed.
+     *
+     * 等待这个 Future，直到完成为止，如果这个 Future 失败了，就会重新引发失败的原因。
      */
     Future<V> sync() throws InterruptedException;
 
     /**
      * Waits for this future until it is done, and rethrows the cause of the failure if this future
      * failed.
+     *
+     * 等待这个 Future，直到完成为止，如果这个 Future 失败了，就会重新引发失败的原因。
      */
     Future<V> syncUninterruptibly();
 

@@ -30,6 +30,9 @@ import java.security.PrivilegedAction;
  * to use {@link PlatformDependent0} on Android without problems.
  *
  * For more details see <a href="https://github.com/netty/netty/issues/2604">#2604</a>.
+ *
+ * 允许通过使用清洁器释放直接的ByteBuffer。
+ * 这是封装在一个额外的类，以便能够在Android上使用PlatformDependent0没有问题。
  */
 final class CleanerJava6 implements Cleaner {
     private static final long CLEANER_FIELD_OFFSET;
