@@ -94,6 +94,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @see ReadTimeoutHandler
  * @see WriteTimeoutHandler
+ *
+ * 空闲检测的处理器
  */
 public class IdleStateHandler extends ChannelDuplexHandler {
     private static final long MIN_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
@@ -158,6 +160,11 @@ public class IdleStateHandler extends ChannelDuplexHandler {
 
     /**
      * @see #IdleStateHandler(boolean, long, long, long, TimeUnit)
+     *
+     * @param readerIdleTime  读空闲的时间
+     * @param writerIdleTime  写空闲的时间
+     * @param allIdleTime     读写空闲的时间
+     * @param unit            无
      */
     public IdleStateHandler(
             long readerIdleTime, long writerIdleTime, long allIdleTime,

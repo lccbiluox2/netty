@@ -51,6 +51,11 @@ import static io.netty.util.internal.ObjectUtil.*;
  * {@link ChannelInboundHandler#userEventTriggered(ChannelHandlerContext, Object)} and check if the event was instance
  * of {@link HandshakeComplete}, the event will contain extra information about the handshake such as the request and
  * selected subprotocol.
+ *
+ * 这个类可以帮你处理一些繁重的操作，使的你可以运行一个 websocket server
+ *
+ * 他负责websocket的握手，以及(Close, Ping, Pong)，文本和二进制将会交给下一个handler去处理，这个将由你去决定。
+ * 这里面有一个很重要的概念：frames，对于websocket来说，数据都是以帧的形式进行传递的。
  */
 public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
 
@@ -111,6 +116,14 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
     private final long handshakeTimeoutMillis;
     private final WebSocketDecoderConfig decoderConfig;
 
+    /**
+     * websocketPath 这里指的是context_path
+     *
+     * ws://server:port/context_path
+     * ws://localhost:port/ws
+     *
+     * @param websocketPath
+     */
     public WebSocketServerProtocolHandler(String websocketPath) {
         this(websocketPath, DEFAULT_HANDSHAKE_TIMEOUT_MS);
     }

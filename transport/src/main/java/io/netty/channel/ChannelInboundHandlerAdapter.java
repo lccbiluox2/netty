@@ -110,6 +110,8 @@ public class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter implemen
      * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
      *
      * Sub-classes may override this method to change behavior.
+     *
+     * 用户事件触发
      */
     @Skip
     @Override
