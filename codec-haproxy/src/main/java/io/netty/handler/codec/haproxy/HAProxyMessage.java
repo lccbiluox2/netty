@@ -15,6 +15,8 @@
  */
 package io.netty.handler.codec.haproxy;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol.AddressFamily;
 import io.netty.util.AbstractReferenceCounted;
@@ -65,7 +67,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
             String sourceAddress, String destinationAddress, int sourcePort, int destinationPort) {
 
         this(protocolVersion, command, proxiedProtocol,
-             sourceAddress, destinationAddress, sourcePort, destinationPort, Collections.<HAProxyTLV>emptyList());
+             sourceAddress, destinationAddress, sourcePort, destinationPort, Collections.emptyList());
     }
 
     /**
@@ -75,10 +77,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
             String sourceAddress, String destinationAddress, int sourcePort, int destinationPort,
             List<HAProxyTLV> tlvs) {
-
-        if (proxiedProtocol == null) {
-            throw new NullPointerException("proxiedProtocol");
-        }
+        requireNonNull(proxiedProtocol, "proxiedProtocol");
         AddressFamily addrFamily = proxiedProtocol.addressFamily();
 
         checkAddress(sourceAddress, addrFamily);
@@ -106,9 +105,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
      * @throws HAProxyProtocolException  if any portion of the header is invalid
      */
     static HAProxyMessage decodeHeader(ByteBuf header) {
-        if (header == null) {
-            throw new NullPointerException("header");
-        }
+        requireNonNull(header, "header");
 
         if (header.readableBytes() < 16) {
             throw new HAProxyProtocolException(
@@ -231,7 +228,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
             return Collections.emptyList();
         }
         // In most cases there are less than 4 TLVs available
-        List<HAProxyTLV> haProxyTLVs = new ArrayList<HAProxyTLV>(4);
+        List<HAProxyTLV> haProxyTLVs = new ArrayList<>(4);
 
         do {
             haProxyTLVs.add(haProxyTLV);
@@ -262,7 +259,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
 
             if (byteBuf.readableBytes() >= 4) {
 
-                final List<HAProxyTLV> encapsulatedTlvs = new ArrayList<HAProxyTLV>(4);
+                final List<HAProxyTLV> encapsulatedTlvs = new ArrayList<>(4);
                 do {
                     final HAProxyTLV haProxyTLV = readNextTLV(byteBuf);
                     if (haProxyTLV == null) {
@@ -273,7 +270,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
 
                 return new HAProxySSLTLV(verify, client, encapsulatedTlvs, rawContent);
             }
-            return new HAProxySSLTLV(verify, client, Collections.<HAProxyTLV>emptyList(), rawContent);
+            return new HAProxySSLTLV(verify, client, Collections.emptyList(), rawContent);
         // If we're not dealing with a SSL Type, we can use the same mechanism
         case PP2_TYPE_ALPN:
         case PP2_TYPE_AUTHORITY:
@@ -401,9 +398,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
      * @throws HAProxyProtocolException  if the address is invalid
      */
     private static void checkAddress(String address, AddressFamily addrFamily) {
-        if (addrFamily == null) {
-            throw new NullPointerException("addrFamily");
-        }
+        requireNonNull(addrFamily, "addrFamily");
 
         switch (addrFamily) {
             case AF_UNSPEC:
@@ -415,9 +410,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
                 return;
         }
 
-        if (address == null) {
-            throw new NullPointerException("address");
-        }
+        requireNonNull(address, "address");
 
         switch (addrFamily) {
             case AF_IPv4:

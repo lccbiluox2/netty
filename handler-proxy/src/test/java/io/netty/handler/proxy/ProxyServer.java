@@ -25,7 +25,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoop;
@@ -52,7 +52,7 @@ abstract class ProxyServer {
     protected final InternalLogger logger = InternalLoggerFactory.getInstance(getClass());
 
     private final ServerSocketChannel ch;
-    private final Queue<Throwable> recordedExceptions = new LinkedBlockingQueue<Throwable>();
+    private final Queue<Throwable> recordedExceptions = new LinkedBlockingQueue<>();
     protected final TestMode testMode;
     protected final String username;
     protected final String password;
@@ -152,7 +152,7 @@ abstract class ProxyServer {
 
     protected abstract class IntermediaryHandler extends SimpleChannelInboundHandler<Object> {
 
-        private final Queue<Object> received = new ArrayDeque<Object>();
+        private final Queue<Object> received = new ArrayDeque<>();
 
         private boolean finished;
         private Channel backend;
@@ -169,16 +169,13 @@ abstract class ProxyServer {
             if (finished) {
                 this.finished = true;
                 ChannelFuture f = connectToDestination(ctx.channel().eventLoop(), new BackendHandler(ctx));
-                f.addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        if (!future.isSuccess()) {
-                            recordException(future.cause());
-                            ctx.close();
-                        } else {
-                            backend = future.channel();
-                            flush();
-                        }
+                f.addListener((ChannelFutureListener) future -> {
+                    if (!future.isSuccess()) {
+                        recordException(future.cause());
+                        ctx.close();
+                    } else {
+                        backend = future.channel();
+                        flush();
                     }
                 });
             }
@@ -232,7 +229,7 @@ abstract class ProxyServer {
             ctx.close();
         }
 
-        private final class BackendHandler extends ChannelInboundHandlerAdapter {
+        private final class BackendHandler implements ChannelInboundHandler {
 
             private final ChannelHandlerContext frontend;
 

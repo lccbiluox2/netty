@@ -16,9 +16,9 @@
 
 package io.netty.util;
 
-import io.netty.util.internal.ObjectUtil;
-import io.netty.util.internal.PlatformDependent;
+import static java.util.Objects.requireNonNull;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class ConstantPool<T extends Constant<T>> {
 
-    private final ConcurrentMap<String, T> constants = PlatformDependent.newConcurrentHashMap();
+    private final ConcurrentMap<String, T> constants = new ConcurrentHashMap<>();
 
     private final AtomicInteger nextId = new AtomicInteger(1);
 
@@ -39,12 +39,8 @@ public abstract class ConstantPool<T extends Constant<T>> {
      * Shortcut of {@link #valueOf(String) valueOf(firstNameComponent.getName() + "#" + secondNameComponent)}.
      */
     public T valueOf(Class<?> firstNameComponent, String secondNameComponent) {
-        if (firstNameComponent == null) {
-            throw new NullPointerException("firstNameComponent");
-        }
-        if (secondNameComponent == null) {
-            throw new NullPointerException("secondNameComponent");
-        }
+        requireNonNull(firstNameComponent, "firstNameComponent");
+        requireNonNull(secondNameComponent, "secondNameComponent");
 
         return valueOf(firstNameComponent.getName() + '#' + secondNameComponent);
     }
@@ -120,7 +116,7 @@ public abstract class ConstantPool<T extends Constant<T>> {
     }
 
     private static String checkNotNullAndNotEmpty(String name) {
-        ObjectUtil.checkNotNull(name, "name");
+        requireNonNull(name, "name");
 
         if (name.isEmpty()) {
             throw new IllegalArgumentException("empty name");

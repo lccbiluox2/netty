@@ -62,7 +62,7 @@ public class OsgiBundleTest {
 
     @Configuration
     public final Option[] config() {
-        final Collection<Option> options = new ArrayList<Option>();
+        final Collection<Option> options = new ArrayList<>();
 
         // Avoid boot delegating sun.misc which would fail testCanLoadPlatformDependent()
         options.add(frameworkProperty(FRAMEWORK_BOOTDELEGATION).value("com.sun.*"));

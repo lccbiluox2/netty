@@ -17,7 +17,6 @@ package io.netty.handler.logging;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
-import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
@@ -31,6 +30,7 @@ import java.net.SocketAddress;
 
 import static io.netty.buffer.ByteBufUtil.appendPrettyHexDump;
 import static io.netty.util.internal.StringUtil.NEWLINE;
+import static java.util.Objects.requireNonNull;
 
 /**
  * A {@link ChannelHandler} that logs all events using a logging framework.
@@ -38,7 +38,7 @@ import static io.netty.util.internal.StringUtil.NEWLINE;
  */
 @Sharable
 @SuppressWarnings({ "StringConcatenationInsideStringBufferAppend", "StringBufferReplaceableByString" })
-public class LoggingHandler extends ChannelDuplexHandler {
+public class LoggingHandler implements ChannelHandler {
 
     private static final LogLevel DEFAULT_LEVEL = LogLevel.DEBUG;
 
@@ -62,9 +62,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
      * @param level the log level
      */
     public LoggingHandler(LogLevel level) {
-        if (level == null) {
-            throw new NullPointerException("level");
-        }
+        requireNonNull(level, "level");
 
         logger = InternalLoggerFactory.getInstance(getClass());
         this.level = level;
@@ -88,12 +86,8 @@ public class LoggingHandler extends ChannelDuplexHandler {
      * @param level the log level
      */
     public LoggingHandler(Class<?> clazz, LogLevel level) {
-        if (clazz == null) {
-            throw new NullPointerException("clazz");
-        }
-        if (level == null) {
-            throw new NullPointerException("level");
-        }
+        requireNonNull(clazz, "clazz");
+        requireNonNull(level, "level");
 
         logger = InternalLoggerFactory.getInstance(clazz);
         this.level = level;
@@ -116,12 +110,8 @@ public class LoggingHandler extends ChannelDuplexHandler {
      * @param level the log level
      */
     public LoggingHandler(String name, LogLevel level) {
-        if (name == null) {
-            throw new NullPointerException("name");
-        }
-        if (level == null) {
-            throw new NullPointerException("level");
-        }
+        requireNonNull(name, "name");
+        requireNonNull(level, "level");
 
         logger = InternalLoggerFactory.getInstance(name);
         this.level = level;

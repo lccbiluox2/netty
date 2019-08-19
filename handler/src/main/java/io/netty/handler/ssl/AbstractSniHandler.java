@@ -18,7 +18,6 @@ package io.netty.handler.ssl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandler;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.DecoderException;
@@ -40,7 +39,7 @@ import java.util.Locale;
  * The client will send host name in the handshake data so server could decide
  * which certificate to choose for the host name.</p>
  */
-public abstract class AbstractSniHandler<T> extends ByteToMessageDecoder implements ChannelOutboundHandler {
+public abstract class AbstractSniHandler<T> extends ByteToMessageDecoder {
 
     private static final InternalLogger logger =
             InternalLoggerFactory.getInstance(AbstractSniHandler.class);
@@ -211,26 +210,23 @@ public abstract class AbstractSniHandler<T> extends ByteToMessageDecoder impleme
             onLookupComplete(ctx, hostname, future);
         } else {
             suppressRead = true;
-            future.addListener(new FutureListener<T>() {
-                @Override
-                public void operationComplete(Future<T> future) throws Exception {
+            future.addListener((FutureListener<T>) future1 -> {
+                try {
+                    suppressRead = false;
                     try {
-                        suppressRead = false;
-                        try {
-                            fireSniCompletionEvent(ctx, hostname, future);
-                            onLookupComplete(ctx, hostname, future);
-                        } catch (DecoderException err) {
-                            ctx.fireExceptionCaught(err);
-                        } catch (Exception cause) {
-                            ctx.fireExceptionCaught(new DecoderException(cause));
-                        } catch (Throwable cause) {
-                            ctx.fireExceptionCaught(cause);
-                        }
-                    } finally {
-                        if (readPending) {
-                            readPending = false;
-                            ctx.read();
-                        }
+                        fireSniCompletionEvent(ctx, hostname, future1);
+                        onLookupComplete(ctx, hostname, future1);
+                    } catch (DecoderException err) {
+                        ctx.fireExceptionCaught(err);
+                    } catch (Exception cause) {
+                        ctx.fireExceptionCaught(new DecoderException(cause));
+                    } catch (Throwable cause) {
+                        ctx.fireExceptionCaught(cause);
+                    }
+                } finally {
+                    if (readPending) {
+                        readPending = false;
+                        ctx.read();
                     }
                 }
             });
@@ -290,6 +286,11 @@ public abstract class AbstractSniHandler<T> extends ByteToMessageDecoder impleme
     @Override
     public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
         ctx.close(promise);
+    }
+
+    @Override
+    public void register(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
+        ctx.register(promise);
     }
 
     @Override

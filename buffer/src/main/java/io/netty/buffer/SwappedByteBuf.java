@@ -15,6 +15,8 @@
  */
 package io.netty.buffer;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.util.ByteProcessor;
 
 import java.io.IOException;
@@ -40,9 +42,7 @@ public class SwappedByteBuf extends ByteBuf {
     private final ByteOrder order;
 
     public SwappedByteBuf(ByteBuf buf) {
-        if (buf == null) {
-            throw new NullPointerException("buf");
-        }
+        requireNonNull(buf, "buf");
         this.buf = buf;
         if (buf.order() == ByteOrder.BIG_ENDIAN) {
             order = ByteOrder.LITTLE_ENDIAN;
@@ -58,9 +58,7 @@ public class SwappedByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf order(ByteOrder endianness) {
-        if (endianness == null) {
-            throw new NullPointerException("endianness");
-        }
+        requireNonNull(endianness, "endianness");
         if (endianness == order) {
             return this;
         }
@@ -179,30 +177,6 @@ public class SwappedByteBuf extends ByteBuf {
     @Override
     public ByteBuf clear() {
         buf.clear();
-        return this;
-    }
-
-    @Override
-    public ByteBuf markReaderIndex() {
-        buf.markReaderIndex();
-        return this;
-    }
-
-    @Override
-    public ByteBuf resetReaderIndex() {
-        buf.resetReaderIndex();
-        return this;
-    }
-
-    @Override
-    public ByteBuf markWriterIndex() {
-        buf.markWriterIndex();
-        return this;
-    }
-
-    @Override
-    public ByteBuf resetWriterIndex() {
-        buf.resetWriterIndex();
         return this;
     }
 

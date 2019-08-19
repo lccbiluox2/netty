@@ -21,8 +21,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.DefaultEventLoopGroup;
+import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.MultithreadEventLoopGroup;
 import io.netty.util.ReferenceCountUtil;
 import org.junit.Test;
 
@@ -41,14 +41,15 @@ public class LocalTransportThreadModelTest2 {
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         LocalHandler serverHandler = new LocalHandler("SERVER");
         serverBootstrap
-                .group(new DefaultEventLoopGroup(), new DefaultEventLoopGroup())
+                .group(new MultithreadEventLoopGroup(io.netty.channel.local.LocalHandler.newFactory()),
+                        new MultithreadEventLoopGroup(io.netty.channel.local.LocalHandler.newFactory()))
                 .channel(LocalServerChannel.class)
                 .childHandler(serverHandler);
 
         Bootstrap clientBootstrap = new Bootstrap();
         LocalHandler clientHandler = new LocalHandler("CLIENT");
         clientBootstrap
-                .group(new DefaultEventLoopGroup())
+                .group(new MultithreadEventLoopGroup(io.netty.channel.local.LocalHandler.newFactory()))
                 .channel(LocalChannel.class)
                 .remoteAddress(new LocalAddress(LOCAL_CHANNEL)).handler(clientHandler);
 
@@ -82,19 +83,14 @@ public class LocalTransportThreadModelTest2 {
             return;
         }
 
-        localChannel.eventLoop().execute(new Runnable() {
-            @Override
-            public void run() {
-                close(localChannel, localRegistrationHandler);
-            }
-        });
+        localChannel.eventLoop().execute(() -> close(localChannel, localRegistrationHandler));
 
         // Wait until the connection is closed or the connection attempt fails.
         localChannel.closeFuture().awaitUninterruptibly();
     }
 
     @Sharable
-    static class LocalHandler extends ChannelInboundHandlerAdapter {
+    static class LocalHandler implements ChannelInboundHandler {
         private final String name;
 
         public volatile ChannelFuture lastWriteFuture;

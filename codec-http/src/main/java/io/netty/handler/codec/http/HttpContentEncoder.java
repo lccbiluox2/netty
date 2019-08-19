@@ -15,6 +15,8 @@
  */
 package io.netty.handler.codec.http;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.ChannelHandlerContext;
@@ -61,7 +63,7 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
     private static final CharSequence ZERO_LENGTH_CONNECT = "CONNECT";
     private static final int CONTINUE_CODE = HttpResponseStatus.CONTINUE.code();
 
-    private final Queue<CharSequence> acceptEncodingQueue = new ArrayDeque<CharSequence>();
+    private final Queue<CharSequence> acceptEncodingQueue = new ArrayDeque<>();
     private EmbeddedChannel encoder;
     private State state = State.AWAIT_HEADERS;
 
@@ -350,12 +352,8 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
         private final EmbeddedChannel contentEncoder;
 
         public Result(String targetContentEncoding, EmbeddedChannel contentEncoder) {
-            if (targetContentEncoding == null) {
-                throw new NullPointerException("targetContentEncoding");
-            }
-            if (contentEncoder == null) {
-                throw new NullPointerException("contentEncoder");
-            }
+            requireNonNull(targetContentEncoding, "targetContentEncoding");
+            requireNonNull(contentEncoder, "contentEncoder");
 
             this.targetContentEncoding = targetContentEncoding;
             this.contentEncoder = contentEncoder;

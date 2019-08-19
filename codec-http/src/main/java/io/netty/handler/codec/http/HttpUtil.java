@@ -15,6 +15,8 @@
  */
 package io.netty.handler.codec.http;
 
+import static java.util.Objects.requireNonNull;
+
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -319,7 +321,7 @@ public final class HttpUtil {
             if (encodings.isEmpty()) {
                 return;
             }
-            List<CharSequence> values = new ArrayList<CharSequence>(encodings);
+            List<CharSequence> values = new ArrayList<>(encodings);
             Iterator<CharSequence> valuesIt = values.iterator();
             while (valuesIt.hasNext()) {
                 CharSequence value = valuesIt.next();
@@ -448,9 +450,7 @@ public final class HttpUtil {
      * @throws NullPointerException in case if {@code contentTypeValue == null}
      */
     public static CharSequence getCharsetAsSequence(CharSequence contentTypeValue) {
-        if (contentTypeValue == null) {
-            throw new NullPointerException("contentTypeValue");
-        }
+        requireNonNull(contentTypeValue, "contentTypeValue");
 
         int indexOfCharset = AsciiString.indexOfIgnoreCaseAscii(contentTypeValue, CHARSET_EQUALS, 0);
         if (indexOfCharset == AsciiString.INDEX_NOT_FOUND) {
@@ -504,9 +504,7 @@ public final class HttpUtil {
      * @throws NullPointerException in case if {@code contentTypeValue == null}
      */
     public static CharSequence getMimeType(CharSequence contentTypeValue) {
-        if (contentTypeValue == null) {
-            throw new NullPointerException("contentTypeValue");
-        }
+        requireNonNull(contentTypeValue, "contentTypeValue");
 
         int indexOfSemicolon = AsciiString.indexOfIgnoreCaseAscii(contentTypeValue, SEMICOLON, 0);
         if (indexOfSemicolon != AsciiString.INDEX_NOT_FOUND) {

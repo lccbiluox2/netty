@@ -15,6 +15,8 @@
  */
 package io.netty.channel.socket.nio;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AddressedEnvelope;
 import io.netty.channel.Channel;
@@ -25,6 +27,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultAddressedEnvelope;
+import io.netty.channel.EventLoop;
 import io.netty.channel.RecvByteBufAllocator;
 import io.netty.channel.nio.AbstractNioMessageChannel;
 import io.netty.channel.socket.DatagramChannelConfig;
@@ -103,32 +106,29 @@ public final class NioDatagramChannel
     }
 
     private static void checkJavaVersion() {
-        if (PlatformDependent.javaVersion() < 7) {
-            throw new UnsupportedOperationException("Only supported on java 7+.");
-        }
     }
 
     /**
      * Create a new instance which will use the Operation Systems default {@link InternetProtocolFamily}.
      */
-    public NioDatagramChannel() {
-        this(newSocket(DEFAULT_SELECTOR_PROVIDER));
+    public NioDatagramChannel(EventLoop eventLoop) {
+        this(eventLoop, newSocket(DEFAULT_SELECTOR_PROVIDER));
     }
 
     /**
      * Create a new instance using the given {@link SelectorProvider}
      * which will use the Operation Systems default {@link InternetProtocolFamily}.
      */
-    public NioDatagramChannel(SelectorProvider provider) {
-        this(newSocket(provider));
+    public NioDatagramChannel(EventLoop eventLoop, SelectorProvider provider) {
+        this(eventLoop, newSocket(provider));
     }
 
     /**
      * Create a new instance using the given {@link InternetProtocolFamily}. If {@code null} is used it will depend
      * on the Operation Systems default which will be chosen.
      */
-    public NioDatagramChannel(InternetProtocolFamily ipFamily) {
-        this(newSocket(DEFAULT_SELECTOR_PROVIDER, ipFamily));
+    public NioDatagramChannel(EventLoop eventLoop, InternetProtocolFamily ipFamily) {
+        this(eventLoop, newSocket(DEFAULT_SELECTOR_PROVIDER, ipFamily));
     }
 
     /**
@@ -136,15 +136,15 @@ public final class NioDatagramChannel
      * If {@link InternetProtocolFamily} is {@code null} it will depend on the Operation Systems default
      * which will be chosen.
      */
-    public NioDatagramChannel(SelectorProvider provider, InternetProtocolFamily ipFamily) {
-        this(newSocket(provider, ipFamily));
+    public NioDatagramChannel(EventLoop eventLoop, SelectorProvider provider, InternetProtocolFamily ipFamily) {
+        this(eventLoop, newSocket(provider, ipFamily));
     }
 
     /**
      * Create a new instance from the given {@link DatagramChannel}.
      */
-    public NioDatagramChannel(DatagramChannel socket) {
-        super(null, socket, SelectionKey.OP_READ);
+    public NioDatagramChannel(EventLoop eventLoop, DatagramChannel socket) {
+        super(null, eventLoop, socket, SelectionKey.OP_READ);
         config = new NioDatagramChannelConfig(this, socket);
     }
 
@@ -193,11 +193,7 @@ public final class NioDatagramChannel
     }
 
     private void doBind0(SocketAddress localAddress) throws Exception {
-        if (PlatformDependent.javaVersion() >= 7) {
-            SocketUtils.bind(javaChannel(), localAddress);
-        } else {
-            javaChannel().socket().bind(localAddress);
-        }
+        SocketUtils.bind(javaChannel(), localAddress);
     }
 
     @Override
@@ -323,7 +319,7 @@ public final class NioDatagramChannel
                 if (isSingleDirectBuffer(content)) {
                     return e;
                 }
-                return new DefaultAddressedEnvelope<ByteBuf, SocketAddress>(newDirectBuffer(e, content), e.recipient());
+                return new DefaultAddressedEnvelope<>(newDirectBuffer(e, content), e.recipient());
             }
         }
 
@@ -401,13 +397,8 @@ public final class NioDatagramChannel
 
         checkJavaVersion();
 
-        if (multicastAddress == null) {
-            throw new NullPointerException("multicastAddress");
-        }
-
-        if (networkInterface == null) {
-            throw new NullPointerException("networkInterface");
-        }
+        requireNonNull(multicastAddress, "multicastAddress");
+        requireNonNull(networkInterface, "networkInterface");
 
         try {
             MembershipKey key;
@@ -420,12 +411,12 @@ public final class NioDatagramChannel
             synchronized (this) {
                 List<MembershipKey> keys = null;
                 if (memberships == null) {
-                    memberships = new HashMap<InetAddress, List<MembershipKey>>();
+                    memberships = new HashMap<>();
                 } else {
                     keys = memberships.get(multicastAddress);
                 }
                 if (keys == null) {
-                    keys = new ArrayList<MembershipKey>();
+                    keys = new ArrayList<>();
                     memberships.put(multicastAddress, keys);
                 }
                 keys.add(key);
@@ -480,12 +471,8 @@ public final class NioDatagramChannel
             ChannelPromise promise) {
         checkJavaVersion();
 
-        if (multicastAddress == null) {
-            throw new NullPointerException("multicastAddress");
-        }
-        if (networkInterface == null) {
-            throw new NullPointerException("networkInterface");
-        }
+        requireNonNull(multicastAddress, "multicastAddress");
+        requireNonNull(networkInterface, "networkInterface");
 
         synchronized (this) {
             if (memberships != null) {
@@ -533,16 +520,10 @@ public final class NioDatagramChannel
             InetAddress sourceToBlock, ChannelPromise promise) {
         checkJavaVersion();
 
-        if (multicastAddress == null) {
-            throw new NullPointerException("multicastAddress");
-        }
-        if (sourceToBlock == null) {
-            throw new NullPointerException("sourceToBlock");
-        }
+        requireNonNull(multicastAddress, "multicastAddress");
+        requireNonNull(sourceToBlock, "sourceToBlock");
+        requireNonNull(networkInterface, "networkInterface");
 
-        if (networkInterface == null) {
-            throw new NullPointerException("networkInterface");
-        }
         synchronized (this) {
             if (memberships != null) {
                 List<MembershipKey> keys = memberships.get(multicastAddress);

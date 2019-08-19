@@ -16,8 +16,9 @@
 
 package io.netty.resolver;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.util.concurrent.EventExecutor;
-import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import io.netty.util.internal.UnstableApi;
 import io.netty.util.internal.logging.InternalLogger;
@@ -40,8 +41,7 @@ public abstract class AddressResolverGroup<T extends SocketAddress> implements C
     /**
      * Note that we do not use a {@link ConcurrentMap} here because it is usually expensive to instantiate a resolver.
      */
-    private final Map<EventExecutor, AddressResolver<T>> resolvers =
-            new IdentityHashMap<EventExecutor, AddressResolver<T>>();
+    private final Map<EventExecutor, AddressResolver<T>> resolvers = new IdentityHashMap<>();
 
     protected AddressResolverGroup() { }
 
@@ -52,9 +52,7 @@ public abstract class AddressResolverGroup<T extends SocketAddress> implements C
      * {@link #getResolver(EventExecutor)} call with the same {@link EventExecutor}.
      */
     public AddressResolver<T> getResolver(final EventExecutor executor) {
-        if (executor == null) {
-            throw new NullPointerException("executor");
-        }
+        requireNonNull(executor, "executor");
 
         if (executor.isShuttingDown()) {
             throw new IllegalStateException("executor not accepting a task");
@@ -72,14 +70,11 @@ public abstract class AddressResolverGroup<T extends SocketAddress> implements C
                 }
 
                 resolvers.put(executor, newResolver);
-                executor.terminationFuture().addListener(new FutureListener<Object>() {
-                    @Override
-                    public void operationComplete(Future<Object> future) throws Exception {
-                        synchronized (resolvers) {
-                            resolvers.remove(executor);
-                        }
-                        newResolver.close();
+                executor.terminationFuture().addListener((FutureListener<Object>) future -> {
+                    synchronized (resolvers) {
+                        resolvers.remove(executor);
                     }
+                    newResolver.close();
                 });
 
                 r = newResolver;

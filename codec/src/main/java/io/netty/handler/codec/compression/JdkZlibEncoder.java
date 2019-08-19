@@ -15,6 +15,8 @@
  */
 package io.netty.handler.codec.compression;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -95,9 +97,7 @@ public class JdkZlibEncoder extends ZlibEncoder {
             throw new IllegalArgumentException(
                     "compressionLevel: " + compressionLevel + " (expected: 0-9)");
         }
-        if (wrapper == null) {
-            throw new NullPointerException("wrapper");
-        }
+        requireNonNull(wrapper, "wrapper");
         if (wrapper == ZlibWrapper.ZLIB_OR_NONE) {
             throw new IllegalArgumentException(
                     "wrapper '" + ZlibWrapper.ZLIB_OR_NONE + "' is not " +
@@ -141,9 +141,7 @@ public class JdkZlibEncoder extends ZlibEncoder {
             throw new IllegalArgumentException(
                     "compressionLevel: " + compressionLevel + " (expected: 0-9)");
         }
-        if (dictionary == null) {
-            throw new NullPointerException("dictionary");
-        }
+        requireNonNull(dictionary, "dictionary");
 
         wrapper = ZlibWrapper.ZLIB;
         deflater = new Deflater(compressionLevel);
@@ -163,12 +161,9 @@ public class JdkZlibEncoder extends ZlibEncoder {
             return finishEncode(ctx, promise);
         } else {
             final ChannelPromise p = ctx.newPromise();
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    ChannelFuture f = finishEncode(ctx(), p);
-                    f.addListener(new ChannelPromiseNotifier(promise));
-                }
+            executor.execute(() -> {
+                ChannelFuture f = finishEncode(ctx(), p);
+                f.addListener(new ChannelPromiseNotifier(promise));
             });
             return p;
         }
@@ -262,20 +257,12 @@ public class JdkZlibEncoder extends ZlibEncoder {
     @Override
     public void close(final ChannelHandlerContext ctx, final ChannelPromise promise) throws Exception {
         ChannelFuture f = finishEncode(ctx, ctx.newPromise());
-        f.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture f) throws Exception {
-                ctx.close(promise);
-            }
-        });
+        f.addListener((ChannelFutureListener) f1 -> ctx.close(promise));
 
         if (!f.isDone()) {
             // Ensure the channel is closed even if the write operation completes in time.
-            ctx.executor().schedule(new Runnable() {
-                @Override
-                public void run() {
-                    ctx.close(promise);
-                }
+            ctx.executor().schedule(() -> {
+                ctx.close(promise);
             }, 10, TimeUnit.SECONDS); // FIXME: Magic number
         }
     }

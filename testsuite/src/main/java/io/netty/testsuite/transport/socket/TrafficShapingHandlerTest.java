@@ -383,7 +383,7 @@ public class TrafficShapingHandlerTest extends AbstractSocketTest {
 
     private static class ClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
         volatile Channel channel;
-        final AtomicReference<Throwable> exception = new AtomicReference<Throwable>();
+        final AtomicReference<Throwable> exception = new AtomicReference<>();
         volatile int step;
         // first message will always be validated
         private long currentLastTime = TrafficCounter.milliSecondFromNano();
@@ -456,7 +456,7 @@ public class TrafficShapingHandlerTest extends AbstractSocketTest {
         private final int[] multipleMessage;
         volatile Channel channel;
         volatile int step;
-        final AtomicReference<Throwable> exception = new AtomicReference<Throwable>();
+        final AtomicReference<Throwable> exception = new AtomicReference<>();
 
         ServerHandler(int[] autoRead, int[] multipleMessage) {
             this.autoRead = autoRead;
@@ -513,23 +513,17 @@ public class TrafficShapingHandlerTest extends AbstractSocketTest {
                         if (isAutoRead == -3) {
                             wait = stepms * 3;
                         }
-                        executor.schedule(new Runnable() {
-                            @Override
-                            public void run() {
-                                loggerServer.info("Step: " + exactStep + " Reset AutoRead");
-                                channel.config().setAutoRead(true);
-                            }
+                        executor.schedule(() -> {
+                            loggerServer.info("Step: " + exactStep + " Reset AutoRead");
+                            channel.config().setAutoRead(true);
                         }, wait, TimeUnit.MILLISECONDS);
                     } else {
                         if (isAutoRead > 1) {
                             loggerServer.debug("Step: " + step + " Will Set AutoRead: True");
                             final int exactStep = step;
-                            executor.schedule(new Runnable() {
-                                @Override
-                                public void run() {
-                                    loggerServer.info("Step: " + exactStep + " Set AutoRead: True");
-                                    channel.config().setAutoRead(true);
-                                }
+                            executor.schedule(() -> {
+                                loggerServer.info("Step: " + exactStep + " Set AutoRead: True");
+                                channel.config().setAutoRead(true);
                             }, stepms + minimalms, TimeUnit.MILLISECONDS);
                         }
                     }

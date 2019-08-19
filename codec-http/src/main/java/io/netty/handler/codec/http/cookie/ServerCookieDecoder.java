@@ -15,7 +15,7 @@
  */
 package io.netty.handler.codec.http.cookie;
 
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import java.util.Collections;
 import java.util.Set;
@@ -62,13 +62,13 @@ public final class ServerCookieDecoder extends CookieDecoder {
      * @return the decoded {@link Cookie}
      */
     public Set<Cookie> decode(String header) {
-        final int headerLen = checkNotNull(header, "header").length();
+        final int headerLen = requireNonNull(header, "header").length();
 
         if (headerLen == 0) {
             return Collections.emptySet();
         }
 
-        Set<Cookie> cookies = new TreeSet<Cookie>();
+        Set<Cookie> cookies = new TreeSet<>();
 
         int i = 0;
 

@@ -15,6 +15,8 @@
  */
 package io.netty.channel.epoll;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.MessageSizeEstimator;
@@ -147,9 +149,7 @@ public final class EpollDomainSocketChannelConfig extends EpollChannelConfig
 
     @Override
     public EpollDomainSocketChannelConfig setReadMode(DomainSocketReadMode mode) {
-        if (mode == null) {
-            throw new NullPointerException("mode");
-        }
+        requireNonNull(mode, "mode");
         this.mode = mode;
         return this;
     }

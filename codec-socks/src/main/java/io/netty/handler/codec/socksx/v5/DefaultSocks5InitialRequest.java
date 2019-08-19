@@ -15,6 +15,8 @@
  */
 package io.netty.handler.codec.socksx.v5;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.handler.codec.DecoderResult;
 import io.netty.util.internal.StringUtil;
 
@@ -30,11 +32,9 @@ public class DefaultSocks5InitialRequest extends AbstractSocks5Message implement
     private final List<Socks5AuthMethod> authMethods;
 
     public DefaultSocks5InitialRequest(Socks5AuthMethod... authMethods) {
-        if (authMethods == null) {
-            throw new NullPointerException("authMethods");
-        }
+        requireNonNull(authMethods, "authMethods");
 
-        List<Socks5AuthMethod> list = new ArrayList<Socks5AuthMethod>(authMethods.length);
+        List<Socks5AuthMethod> list = new ArrayList<>(authMethods.length);
         for (Socks5AuthMethod m: authMethods) {
             if (m == null) {
                 break;
@@ -50,11 +50,9 @@ public class DefaultSocks5InitialRequest extends AbstractSocks5Message implement
     }
 
     public DefaultSocks5InitialRequest(Iterable<Socks5AuthMethod> authMethods) {
-        if (authMethods == null) {
-            throw new NullPointerException("authSchemes");
-        }
+        requireNonNull(authMethods, "authMethods");
 
-        List<Socks5AuthMethod> list = new ArrayList<Socks5AuthMethod>();
+        List<Socks5AuthMethod> list = new ArrayList<>();
         for (Socks5AuthMethod m: authMethods) {
             if (m == null) {
                 break;

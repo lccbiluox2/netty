@@ -35,22 +35,12 @@ public interface BooleanSupplier {
      *
      * 一个总是返回 false 的提供方（不会抛出异常）
      */
-    BooleanSupplier FALSE_SUPPLIER = new BooleanSupplier() {
-        @Override
-        public boolean get() {
-            return false;
-        }
-    };
+    BooleanSupplier FALSE_SUPPLIER = () -> false;
 
     /**
      * A supplier which always returns {@code true} and never throws.
      *
      * 一个总是返回 true 的提供方（不会抛出异常）
      */
-    BooleanSupplier TRUE_SUPPLIER = new BooleanSupplier() {
-        @Override
-        public boolean get() {
-            return true;
-        }
-    };
+    BooleanSupplier TRUE_SUPPLIER = () -> true;
 }

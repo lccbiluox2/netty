@@ -24,7 +24,7 @@ import io.netty.util.internal.UnstableApi;
 import java.util.Arrays;
 import java.util.List;
 
-import static io.netty.util.internal.ObjectUtil.*;
+import static java.util.Objects.requireNonNull;
 
 /**
  * A composite {@link SimpleNameResolver} that resolves a host name against a sequence of {@link NameResolver}s.
@@ -43,11 +43,9 @@ public final class CompositeNameResolver<T> extends SimpleNameResolver<T> {
      */
     public CompositeNameResolver(EventExecutor executor, NameResolver<T>... resolvers) {
         super(executor);
-        checkNotNull(resolvers, "resolvers");
+        requireNonNull(resolvers, "resolvers");
         for (int i = 0; i < resolvers.length; i++) {
-            if (resolvers[i] == null) {
-                throw new NullPointerException("resolvers[" + i + ']');
-            }
+            requireNonNull(resolvers[i], "resolvers[" + i + "]");
         }
         if (resolvers.length < 2) {
             throw new IllegalArgumentException("resolvers: " + Arrays.asList(resolvers) +
@@ -69,14 +67,11 @@ public final class CompositeNameResolver<T> extends SimpleNameResolver<T> {
             promise.setFailure(lastFailure);
         } else {
             NameResolver<T> resolver = resolvers[resolverIndex];
-            resolver.resolve(inetHost).addListener(new FutureListener<T>() {
-                @Override
-                public void operationComplete(Future<T> future) throws Exception {
-                    if (future.isSuccess()) {
-                        promise.setSuccess(future.getNow());
-                    } else {
-                        doResolveRec(inetHost, promise, resolverIndex + 1, future.cause());
-                    }
+            resolver.resolve(inetHost).addListener((FutureListener<T>) future -> {
+                if (future.isSuccess()) {
+                    promise.setSuccess(future.getNow());
+                } else {
+                    doResolveRec(inetHost, promise, resolverIndex + 1, future.cause());
                 }
             });
         }
@@ -95,14 +90,11 @@ public final class CompositeNameResolver<T> extends SimpleNameResolver<T> {
             promise.setFailure(lastFailure);
         } else {
             NameResolver<T> resolver = resolvers[resolverIndex];
-            resolver.resolveAll(inetHost).addListener(new FutureListener<List<T>>() {
-                @Override
-                public void operationComplete(Future<List<T>> future) throws Exception {
-                    if (future.isSuccess()) {
-                        promise.setSuccess(future.getNow());
-                    } else {
-                        doResolveAllRec(inetHost, promise, resolverIndex + 1, future.cause());
-                    }
+            resolver.resolveAll(inetHost).addListener((FutureListener<List<T>>) future -> {
+                if (future.isSuccess()) {
+                    promise.setSuccess(future.getNow());
+                } else {
+                    doResolveAllRec(inetHost, promise, resolverIndex + 1, future.cause());
                 }
             });
         }

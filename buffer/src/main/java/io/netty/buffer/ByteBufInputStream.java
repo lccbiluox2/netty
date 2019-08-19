@@ -15,6 +15,8 @@
  */
 package io.netty.buffer;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.util.ReferenceCounted;
 import io.netty.util.internal.StringUtil;
 
@@ -45,6 +47,8 @@ public class ByteBufInputStream extends InputStream implements DataInput {
     private final int startIndex;
     private final int endIndex;
     private boolean closed;
+    private int markReaderIndex;
+
     /**
      * To preserve backwards compatibility (which didn't transfer ownership) we support a conditional flag which
      * indicates if {@link #buffer} should be released when this {@link InputStream} is closed.
@@ -102,9 +106,7 @@ public class ByteBufInputStream extends InputStream implements DataInput {
      *            {@code writerIndex}
      */
     public ByteBufInputStream(ByteBuf buffer, int length, boolean releaseOnClose) {
-        if (buffer == null) {
-            throw new NullPointerException("buffer");
-        }
+        requireNonNull(buffer, "buffer");
         if (length < 0) {
             if (releaseOnClose) {
                 buffer.release();
@@ -123,7 +125,7 @@ public class ByteBufInputStream extends InputStream implements DataInput {
         this.buffer = buffer;
         startIndex = buffer.readerIndex();
         endIndex = startIndex + length;
-        buffer.markReaderIndex();
+        markReaderIndex = startIndex;
     }
 
     /**
@@ -153,7 +155,7 @@ public class ByteBufInputStream extends InputStream implements DataInput {
 
     @Override
     public void mark(int readlimit) {
-        buffer.markReaderIndex();
+        markReaderIndex = buffer.readerIndex();
     }
 
     @Override
@@ -184,7 +186,7 @@ public class ByteBufInputStream extends InputStream implements DataInput {
 
     @Override
     public void reset() throws IOException {
-        buffer.resetReaderIndex();
+        buffer.readerIndex(markReaderIndex);
     }
 
     @Override

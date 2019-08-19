@@ -15,12 +15,13 @@
  */
 package io.netty.handler.ssl;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
-import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -59,7 +60,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  * }
  * </pre>
  */
-public abstract class ApplicationProtocolNegotiationHandler extends ChannelInboundHandlerAdapter {
+public abstract class ApplicationProtocolNegotiationHandler implements ChannelInboundHandler {
 
     private static final InternalLogger logger =
             InternalLoggerFactory.getInstance(ApplicationProtocolNegotiationHandler.class);
@@ -73,7 +74,7 @@ public abstract class ApplicationProtocolNegotiationHandler extends ChannelInbou
      *                         ALPN/NPN negotiation fails or the client does not support ALPN/NPN
      */
     protected ApplicationProtocolNegotiationHandler(String fallbackProtocol) {
-        this.fallbackProtocol = ObjectUtil.checkNotNull(fallbackProtocol, "fallbackProtocol");
+        this.fallbackProtocol = requireNonNull(fallbackProtocol, "fallbackProtocol");
     }
 
     @Override

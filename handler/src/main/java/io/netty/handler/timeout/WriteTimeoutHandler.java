@@ -15,14 +15,15 @@
  */
 package io.netty.handler.timeout;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 
 import java.util.concurrent.ScheduledFuture;
@@ -42,7 +43,7 @@ import java.util.concurrent.TimeUnit;
  * }
  *
  * // Handler should handle the {@link WriteTimeoutException}.
- * public class MyHandler extends {@link ChannelDuplexHandler} {
+ * public class MyHandler implements {@link ChannelHandler} {
  *     {@code @Override}
  *     public void exceptionCaught({@link ChannelHandlerContext} ctx, {@link Throwable} cause)
  *             throws {@link Exception} {
@@ -62,7 +63,7 @@ import java.util.concurrent.TimeUnit;
  * @see ReadTimeoutHandler
  * @see IdleStateHandler
  */
-public class WriteTimeoutHandler extends ChannelOutboundHandlerAdapter {
+public class WriteTimeoutHandler implements ChannelHandler {
     private static final long MIN_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
 
     private final long timeoutNanos;
@@ -93,9 +94,7 @@ public class WriteTimeoutHandler extends ChannelOutboundHandlerAdapter {
      *        the {@link TimeUnit} of {@code timeout}
      */
     public WriteTimeoutHandler(long timeout, TimeUnit unit) {
-        if (unit == null) {
-            throw new NullPointerException("unit");
-        }
+        requireNonNull(unit, "unit");
 
         if (timeout <= 0) {
             timeoutNanos = 0;

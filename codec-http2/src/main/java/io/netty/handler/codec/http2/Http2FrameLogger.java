@@ -17,7 +17,6 @@ package io.netty.handler.codec.http2;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
-import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.internal.UnstableApi;
@@ -25,13 +24,13 @@ import io.netty.util.internal.logging.InternalLogLevel;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Logs HTTP2 frames for debugging purposes.
  */
 @UnstableApi
-public class Http2FrameLogger extends ChannelHandlerAdapter {
+public class Http2FrameLogger {
 
     public enum Direction {
         INBOUND,
@@ -55,8 +54,8 @@ public class Http2FrameLogger extends ChannelHandlerAdapter {
     }
 
     private Http2FrameLogger(InternalLogLevel level, InternalLogger logger) {
-        this.level = checkNotNull(level, "level");
-        this.logger = checkNotNull(logger, "logger");
+        this.level = requireNonNull(level, "level");
+        this.logger = requireNonNull(logger, "logger");
     }
 
     public boolean isEnabled() {

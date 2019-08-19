@@ -15,6 +15,8 @@
  */
 package io.netty.handler.codec.rtsp;
 
+import static java.util.Objects.requireNonNull;
+
 import io.netty.handler.codec.http.HttpMethod;
 
 import java.util.HashMap;
@@ -95,7 +97,7 @@ public final class RtspMethods {
      */
     public static final HttpMethod RECORD = HttpMethod.valueOf("RECORD");
 
-    private static final Map<String, HttpMethod> methodMap = new HashMap<String, HttpMethod>();
+    private static final Map<String, HttpMethod> methodMap = new HashMap<>();
 
     static {
         methodMap.put(DESCRIBE.toString(), DESCRIBE);
@@ -117,9 +119,7 @@ public final class RtspMethods {
      * will be returned.  Otherwise, a new instance will be returned.
      */
     public static HttpMethod valueOf(String name) {
-        if (name == null) {
-            throw new NullPointerException("name");
-        }
+        requireNonNull(name, "name");
 
         name = name.trim().toUpperCase();
         if (name.isEmpty()) {

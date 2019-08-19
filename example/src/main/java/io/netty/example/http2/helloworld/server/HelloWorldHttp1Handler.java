@@ -24,7 +24,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_0;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -44,7 +44,7 @@ public class HelloWorldHttp1Handler extends SimpleChannelInboundHandler<FullHttp
     private final String establishApproach;
 
     public HelloWorldHttp1Handler(String establishApproach) {
-        this.establishApproach = checkNotNull(establishApproach, "establishApproach");
+        this.establishApproach = requireNonNull(establishApproach, "establishApproach");
     }
 
     @Override

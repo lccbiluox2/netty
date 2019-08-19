@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import static java.lang.Math.min;
+import static java.util.Objects.requireNonNull;
 
 /**
  * (Transport implementors only) an internal data structure used by {@link AbstractChannel} to store its pending
@@ -614,12 +615,7 @@ public final class ChannelOutboundBuffer {
         if (invokeLater) {
             Runnable task = fireChannelWritabilityChangedTask;
             if (task == null) {
-                fireChannelWritabilityChangedTask = task = new Runnable() {
-                    @Override
-                    public void run() {
-                        pipeline.fireChannelWritabilityChanged();
-                    }
-                };
+                fireChannelWritabilityChangedTask = task = pipeline::fireChannelWritabilityChanged;
             }
             channel.eventLoop().execute(task);
         } else {
@@ -666,12 +662,7 @@ public final class ChannelOutboundBuffer {
 
     void close(final Throwable cause, final boolean allowChannelOpen) {
         if (inFail) {
-            channel.eventLoop().execute(new Runnable() {
-                @Override
-                public void run() {
-                    close(cause, allowChannelOpen);
-                }
-            });
+            channel.eventLoop().execute(() -> close(cause, allowChannelOpen));
             return;
         }
 
@@ -766,9 +757,7 @@ public final class ChannelOutboundBuffer {
      * returns {@code false} or there are no more flushed messages to process.
      */
     public void forEachFlushedMessage(MessageProcessor processor) throws Exception {
-        if (processor == null) {
-            throw new NullPointerException("processor");
-        }
+        requireNonNull(processor, "processor");
 
         Entry entry = flushedEntry;
         if (entry == null) {

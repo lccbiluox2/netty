@@ -39,22 +39,15 @@ final class CleanerJava9 implements Cleaner {
         final Throwable error;
         if (PlatformDependent0.hasUnsafe()) {
             final ByteBuffer buffer = ByteBuffer.allocateDirect(1);
-            Object maybeInvokeMethod = AccessController.doPrivileged(new PrivilegedAction<Object>() {
-                @Override
-                public Object run() {
-                    try {
-                        // See https://bugs.openjdk.java.net/browse/JDK-8171377
-                        Method m = PlatformDependent0.UNSAFE.getClass().getDeclaredMethod(
-                                "invokeCleaner", ByteBuffer.class);
-                        m.invoke(PlatformDependent0.UNSAFE, buffer);
-                        return m;
-                    } catch (NoSuchMethodException e) {
-                        return e;
-                    } catch (InvocationTargetException e) {
-                        return e;
-                    } catch (IllegalAccessException e) {
-                        return e;
-                    }
+            Object maybeInvokeMethod = AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+                try {
+                    // See https://bugs.openjdk.java.net/browse/JDK-8171377
+                    Method m = PlatformDependent0.UNSAFE.getClass().getDeclaredMethod(
+                            "invokeCleaner", ByteBuffer.class);
+                    m.invoke(PlatformDependent0.UNSAFE, buffer);
+                    return m;
+                } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+                    return e;
                 }
             });
 
@@ -97,18 +90,13 @@ final class CleanerJava9 implements Cleaner {
     }
 
     private static void freeDirectBufferPrivileged(final ByteBuffer buffer) {
-        Exception error = AccessController.doPrivileged(new PrivilegedAction<Exception>() {
-            @Override
-            public Exception run() {
-                try {
-                    INVOKE_CLEANER.invoke(PlatformDependent0.UNSAFE, buffer);
-                } catch (InvocationTargetException e) {
-                    return e;
-                } catch (IllegalAccessException e) {
-                    return e;
-                }
-                return null;
+        Exception error = AccessController.doPrivileged((PrivilegedAction<Exception>) () -> {
+            try {
+                INVOKE_CLEANER.invoke(PlatformDependent0.UNSAFE, buffer);
+            } catch (InvocationTargetException | IllegalAccessException e) {
+                return e;
             }
+            return null;
         });
         if (error != null) {
             PlatformDependent0.throwException(error);
