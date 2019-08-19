@@ -18,7 +18,6 @@ package io.netty.bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoop;
@@ -27,7 +26,6 @@ import io.netty.resolver.AddressResolver;
 import io.netty.resolver.DefaultAddressResolverGroup;
 import io.netty.resolver.NameResolver;
 import io.netty.resolver.AddressResolverGroup;
-import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import io.netty.util.internal.ObjectUtil;
@@ -46,8 +44,6 @@ import java.util.Map.Entry;
  *
  * <p>The {@link #bind()} methods are useful in combination with connectionless transports such as datagram (UDP).
  * For regular TCP connections, please use the provided {@link #connect()} methods.</p>
- * <p>
- * Bootstrap是Socket客户端创建工具类，用户通过Bootstrap可以方便的创建Netty的客户端并发起异步TCP连接操作
  */
 public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
@@ -55,9 +51,6 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
     private static final AddressResolverGroup<?> DEFAULT_RESOLVER = DefaultAddressResolverGroup.INSTANCE;
 
-    /**
-     * 配置项
-     */
     private final BootstrapConfig config = new BootstrapConfig(this);
 
     @SuppressWarnings("unchecked")
@@ -65,8 +58,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
             (AddressResolverGroup<SocketAddress>) DEFAULT_RESOLVER;
     private volatile SocketAddress remoteAddress;
 
-    public Bootstrap() {
-    }
+    public Bootstrap() { }
 
     private Bootstrap(Bootstrap bootstrap) {
         super(bootstrap);
@@ -79,6 +71,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
      *
      * @param resolver the {@link NameResolver} for this {@code Bootstrap}; may be {@code null}, in which case a default
      *                 resolver will be used
+     *
      * @see io.netty.resolver.DefaultAddressResolverGroup
      */
     @SuppressWarnings("unchecked")
@@ -161,16 +154,13 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
      * @see #connect()
      */
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
-        // 与服务端类似，负责初始化和注册这个channel
         final ChannelFuture regFuture = initAndRegister();
-        // 获得创建的channel
         final Channel channel = regFuture.channel();
 
         if (regFuture.isDone()) {
             if (!regFuture.isSuccess()) {
                 return regFuture;
             }
-            // 连接
             return doResolveAndConnect0(channel, remoteAddress, localAddress, channel.newPromise());
         } else {
             // Registration future is almost always fulfilled already, but just in case it's not.
@@ -264,24 +254,12 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
     @Override
     @SuppressWarnings("unchecked")
-    void init(Channel channel) throws Exception {
+    void init(Channel channel) {
         ChannelPipeline p = channel.pipeline();
-        // 设置用户添加的handler，也就是初始化的handler
         p.addLast(config.handler());
 
-        final Map<ChannelOption<?>, Object> options = options0();
-        synchronized (options) {
-            // 设置channel的配置选项
-            setChannelOptions(channel, options, logger);
-        }
-
-        final Map<AttributeKey<?>, Object> attrs = attrs0();
-        synchronized (attrs) {
-            // 设置channel的属性
-            for (Entry<AttributeKey<?>, Object> e : attrs.entrySet()) {
-                channel.attr((AttributeKey<Object>) e.getKey()).set(e.getValue());
-            }
-        }
+        setChannelOptions(channel, options0().entrySet().toArray(newOptionArray(0)), logger);
+        setAttributes(channel, attrs0().entrySet().toArray(newAttrArray(0)));
     }
 
     @Override
