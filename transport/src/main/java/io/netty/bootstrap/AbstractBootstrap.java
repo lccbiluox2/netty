@@ -306,7 +306,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * 4. 端口绑定->AbstractUnsafe.bind()入口
      *  a. doBinid()
      *      javaChannel().bind(localAddress, config.getBacklog()) jdk底层绑定
-     *  b. pipeline.fireChannelActive() 传播channelRegister事件，回调ServerHandler.handlerActive()方法
+     *  b. pipeline.fireChannelActive() 传播channelActive事件，回调ServerHandler.handlerActive()方法
      *      HeaderContext.readIfAutoRead()修改之前监听的事件为Accept
      *          Tail.read()
      *              AbstractNioChannel.doBeginRead()，修改监听的事件为Op_Accept
