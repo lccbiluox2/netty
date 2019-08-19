@@ -32,6 +32,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
 
+    /**
+     * 线程数组
+     */
     private final EventExecutor[] children;
     private final List<EventExecutor> readonlyChildren;
     private final AtomicInteger terminatedChildren = new AtomicInteger();
@@ -218,6 +221,15 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
         return new SingleThreadEventExecutor(executor, maxPendingTasks, rejectedExecutionHandler);
     }
 
+    /**
+     * 遍历EventLoop数组，循环调用他们的shutdownGracefully方法
+     * @param quietPeriod the quiet period as described in the documentation
+     * @param timeout     the maximum amount of time to wait until the executor is {@linkplain #shutdown()}
+     *                    regardless if a task was submitted during the quiet period
+     * @param unit        the unit of {@code quietPeriod} and {@code timeout}
+     *
+     * @return
+     */
     @Override
     public final Future<?> shutdownGracefully(long quietPeriod, long timeout, TimeUnit unit) {
         for (EventExecutor l: children) {

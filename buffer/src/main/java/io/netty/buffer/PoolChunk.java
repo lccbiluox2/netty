@@ -19,8 +19,14 @@ package io.netty.buffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
+/**
+ * 感言：多年之前，从C内存的手动管理上升到java的自动GC，是历史的巨大进步。然而多年之后，netty的内存实现又曲线的回到了手动管理模式，
+ * 正印证了马克思哲学观：社会总是在螺旋式前进的，没有永远的最好。的确，就内存管理而言，GC给程序员带来的价值是不言而喻的，
+ * 不仅大大的降低了程序员的负担，而且也极大的减少了内存管理带来的Crash困扰，不过也有很多情况，可能手动的内存管理更为合适。
+ */
 
 /**
+ * // 来自PoolChunk的PageRun / PoolSubpage分配算法的描述
  * Description of algorithm for PageRun/PoolSubpage allocation from PoolChunk
  *
  * Notation: The following terms are important to understand the code
@@ -28,16 +34,22 @@ import java.util.Deque;
  * > chunk - a chunk is a collection of pages
  * > in this code chunkSize = 2^{maxOrder} * pageSize
  *
+ * // 首先，我们会分配一个size = chunkSize的字节数组，每当需要创建给定大小的ByteBuf时，
+ * 我们从数据第一个位置开始搜索，判断在字节数组中有足够的空白空间来容纳请求的大小，并且返回一个偏移量
+ * （以后这段数据空间就只会由这个ByteBuf使用了）
  * To begin we allocate a byte array of size = chunkSize
  * Whenever a ByteBuf of given size needs to be created we search for the first position
  * in the byte array that has enough empty space to accommodate the requested size and
  * return a (long) handle that encodes this offset information, (this memory segment is then
  * marked as reserved so it is always used by exactly one ByteBuf and no more)
  *
+ * // 为简单起见，根据PoolArena＃normalizeCapacity方法对所有大小进行标准化
+ * 这确保了当我们请求size> = pageSize的内存段时，normalizedCapacity等于下一个最近的2的幂
  * For simplicity all sizes are normalized according to PoolArena#normalizeCapacity method
  * This ensures that when we request for memory segments of size >= pageSize the normalizedCapacity
  * equals the next nearest power of 2
  *
+ * // 要找到至少达到请求大小可用的块中的第一个偏移量，我们构造一个完整的平衡二叉树并将其存储在一个数组中（就像堆一样） -  memoryMap
  * To search for the first offset in chunk that has at least requested size available we construct a
  * complete balanced binary tree and store it in an array (just like heaps) - memoryMap
  *
@@ -103,10 +115,12 @@ import java.util.Deque;
  * memoryMap[id]= depth_of_id  is defined above
  * depthMap[id]= x  indicates that the first node which is free to be allocated is at depth x (from root)
  */
+// Chunk = 块
 final class PoolChunk<T> implements PoolChunkMetric {
 
     private static final int INTEGER_SIZE_MINUS_ONE = Integer.SIZE - 1;
 
+    // 竞技场
     final PoolArena<T> arena;
     final T memory;
     final boolean unpooled;
@@ -125,10 +139,13 @@ final class PoolChunk<T> implements PoolChunkMetric {
     /** Used to mark memory as unusable */
     private final byte unusable;
 
+    // 用作从内存创建的ByteBuffer的缓存。 这些缓存是重复的，因此PoolChunk是内存缓存的容器。
+    // 这些通常需要在Pooled * ByteBuf中进行操作，因此可能会产生额外的GC，这可以通过缓存重复项来大大减少。
     // Use as cache for ByteBuffer created from the memory. These are just duplicates and so are only a container
     // around the memory itself. These are often needed for operations within the Pooled*ByteBuf and so
     // may produce extra GC, which can be greatly reduced by caching the duplicates.
     //
+    // 如果PoolChunk未被池化，那么这可能为空，此时池中的ByteBuffer实例没有任何意义。
     // This may be null if the PoolChunk is unpooled as pooling the ByteBuffer instances does not make any sense here.
     private final Deque<ByteBuffer> cachedNioBuffers;
 

@@ -19,7 +19,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoop;
 import io.netty.channel.RecvByteBufAllocator;
 import io.netty.channel.ServerChannel;
 
@@ -37,10 +36,10 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
     boolean inputShutdown;
 
     /**
-     * @see AbstractNioChannel#AbstractNioChannel(Channel, EventLoop, SelectableChannel, int)
+     * @see AbstractNioChannel#AbstractNioChannel(Channel, SelectableChannel, int)
      */
-    protected AbstractNioMessageChannel(Channel parent, EventLoop eventLoop, SelectableChannel ch, int readInterestOp) {
-        super(parent, eventLoop, ch, readInterestOp);
+    protected AbstractNioMessageChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
+        super(parent, ch, readInterestOp);
     }
 
     @Override
@@ -58,12 +57,16 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
 
     private final class NioMessageUnsafe extends AbstractNioUnsafe {
 
-        private final List<Object> readBuf = new ArrayList<>();
+        /**
+         * 可以是SocketChannel对象的List集合
+         */
+        private final List<Object> readBuf = new ArrayList<Object>();
 
         @Override
         public void read() {
             assert eventLoop().inEventLoop();
             final ChannelConfig config = config();
+            // 如果是NioServerSocketChannel,则获取其对应的pipeline
             final ChannelPipeline pipeline = pipeline();
             final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();
             allocHandle.reset(config);
@@ -89,12 +92,14 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 }
 
                 int size = readBuf.size();
-                for (int i = 0; i < size; i ++) {
+                for (int i = 0; i < size; i++) {
                     readPending = false;
+                    // 调用pipeline中所有handler的channelRead方法
                     pipeline.fireChannelRead(readBuf.get(i));
                 }
                 readBuf.clear();
                 allocHandle.readComplete();
+                // 处理channel read complete
                 pipeline.fireChannelReadComplete();
 
                 if (exception != null) {
@@ -108,8 +113,6 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                     if (isOpen()) {
                         close(voidPromise());
                     }
-                } else {
-                    readIfIsAutoRead();
                 }
             } finally {
                 // Check if there is a readPending which was not processed yet.

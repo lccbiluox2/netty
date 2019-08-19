@@ -30,7 +30,7 @@ import java.net.NetworkInterface;
  * of {@link ChannelConfig} and may depend on the nature of the transport it belongs
  * to.
  *
- * @param <T>   the type of the value which is valid for the {@link ChannelOption}
+ * @param <T> the type of the value which is valid for the {@link ChannelOption}
  */
 public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
 
@@ -80,6 +80,9 @@ public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
     public static final ChannelOption<RecvByteBufAllocator> RCVBUF_ALLOCATOR = valueOf("RCVBUF_ALLOCATOR");
     public static final ChannelOption<MessageSizeEstimator> MESSAGE_SIZE_ESTIMATOR = valueOf("MESSAGE_SIZE_ESTIMATOR");
 
+    /**
+     * 客户端连接超时时间，由于原生NIO客户端并不提供设置连接超时的接口，因此Netty采用自定义连接超时定时器负责检测是否超时和进行超时控制
+     */
     public static final ChannelOption<Integer> CONNECT_TIMEOUT_MILLIS = valueOf("CONNECT_TIMEOUT_MILLIS");
     /**
      * @deprecated Use {@link MaxMessagesRecvByteBufAllocator}
@@ -112,11 +115,20 @@ public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
 
     public static final ChannelOption<Boolean> SO_BROADCAST = valueOf("SO_BROADCAST");
     public static final ChannelOption<Boolean> SO_KEEPALIVE = valueOf("SO_KEEPALIVE");
+    /**
+     * 套接字使用的发送缓冲区大小
+     */
     public static final ChannelOption<Integer> SO_SNDBUF = valueOf("SO_SNDBUF");
+    /**
+     * 套接字使用的接收缓冲区大小
+     */
     public static final ChannelOption<Integer> SO_RCVBUF = valueOf("SO_RCVBUF");
     public static final ChannelOption<Boolean> SO_REUSEADDR = valueOf("SO_REUSEADDR");
     public static final ChannelOption<Integer> SO_LINGER = valueOf("SO_LINGER");
     public static final ChannelOption<Integer> SO_BACKLOG = valueOf("SO_BACKLOG");
+    /**
+     * 控制读取操作将阻塞多少毫秒，如果返回值为0，计时器就被禁用，该线程将无限期阻塞
+     */
     public static final ChannelOption<Integer> SO_TIMEOUT = valueOf("SO_TIMEOUT");
 
     public static final ChannelOption<Integer> IP_TOS = valueOf("IP_TOS");
@@ -125,6 +137,9 @@ public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
     public static final ChannelOption<Integer> IP_MULTICAST_TTL = valueOf("IP_MULTICAST_TTL");
     public static final ChannelOption<Boolean> IP_MULTICAST_LOOP_DISABLED = valueOf("IP_MULTICAST_LOOP_DISABLED");
 
+    /**
+     * 它决定是否使用Nagle算法，如果是时延敏感型应用，建议关闭Nagle算法
+     */
     public static final ChannelOption<Boolean> TCP_NODELAY = valueOf("TCP_NODELAY");
 
     @Deprecated

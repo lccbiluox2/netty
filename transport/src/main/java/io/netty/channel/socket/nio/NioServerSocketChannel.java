@@ -15,18 +15,15 @@
  */
 package io.netty.channel.socket.nio;
 
-import static java.util.Objects.requireNonNull;
-
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelOutboundBuffer;
-import io.netty.channel.EventLoop;
-import io.netty.channel.EventLoopGroup;
 import io.netty.util.internal.SocketUtils;
 import io.netty.channel.nio.AbstractNioMessageChannel;
 import io.netty.channel.socket.DefaultServerSocketChannelConfig;
 import io.netty.channel.socket.ServerSocketChannelConfig;
+import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -69,20 +66,19 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     }
 
     private final ServerSocketChannelConfig config;
-    private final EventLoopGroup childEventLoopGroup;
 
     /**
      * Create a new instance
      */
-    public NioServerSocketChannel(EventLoop eventLoop, EventLoopGroup childEventLoopGroup) {
-        this(eventLoop, childEventLoopGroup, newSocket(DEFAULT_SELECTOR_PROVIDER));
+    public NioServerSocketChannel() {
+        this(newSocket(DEFAULT_SELECTOR_PROVIDER));
     }
 
     /**
      * Create a new instance using the given {@link SelectorProvider}.
      */
-    public NioServerSocketChannel(EventLoop eventLoop, EventLoopGroup childEventLoopGroup, SelectorProvider provider) {
-        this(eventLoop, childEventLoopGroup, newSocket(provider));
+    public NioServerSocketChannel(SelectorProvider provider) {
+        this(newSocket(provider));
     }
 
     /**
@@ -93,11 +89,6 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         super(null, eventLoop, channel, SelectionKey.OP_ACCEPT);
         this.childEventLoopGroup = requireNonNull(childEventLoopGroup, "childEventLoopGroup");
         config = new NioServerSocketChannelConfig(this, javaChannel().socket());
-    }
-
-    @Override
-    public EventLoopGroup childEventLoopGroup() {
-        return childEventLoopGroup;
     }
 
     @Override
@@ -115,6 +106,9 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         return config;
     }
 
+    /**
+     * 服务端的isActive
+     */
     @Override
     public boolean isActive() {
         // As java.nio.ServerSocketChannel.isBound() will continue to return true even after the channel was closed
@@ -139,7 +133,11 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {
-        javaChannel().bind(localAddress, config.getBacklog());
+        if (PlatformDependent.javaVersion() >= 7) {
+            javaChannel().bind(localAddress, config.getBacklog());
+        } else {
+            javaChannel().socket().bind(localAddress, config.getBacklog());
+        }
     }
 
     @Override
@@ -149,11 +147,13 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     protected int doReadMessages(List<Object> buf) throws Exception {
+        // 创建SocketChannel,accept客户端
         SocketChannel ch = SocketUtils.accept(javaChannel());
 
         try {
             if (ch != null) {
-                buf.add(new NioSocketChannel(this, childEventLoopGroup().next(), ch));
+                // 将NioSocketChannel塞回List里
+                buf.add(new NioSocketChannel(this, ch));
                 return 1;
             }
         } catch (Throwable t) {
@@ -213,7 +213,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
         @Override
         public <T> boolean setOption(ChannelOption<T> option, T value) {
-            if (option instanceof NioChannelOption) {
+            if (PlatformDependent.javaVersion() >= 7 && option instanceof NioChannelOption) {
                 return NioChannelOption.setOption(jdkChannel(), (NioChannelOption<T>) option, value);
             }
             return super.setOption(option, value);
@@ -221,7 +221,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
         @Override
         public <T> T getOption(ChannelOption<T> option) {
-            if (option instanceof NioChannelOption) {
+            if (PlatformDependent.javaVersion() >= 7 && option instanceof NioChannelOption) {
                 return NioChannelOption.getOption(jdkChannel(), (NioChannelOption<T>) option);
             }
             return super.getOption(option);
@@ -230,7 +230,10 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         @SuppressWarnings("unchecked")
         @Override
         public Map<ChannelOption<?>, Object> getOptions() {
-            return getOptions(super.getOptions(), NioChannelOption.getOptions(jdkChannel()));
+            if (PlatformDependent.javaVersion() >= 7) {
+                return getOptions(super.getOptions(), NioChannelOption.getOptions(jdkChannel()));
+            }
+            return super.getOptions();
         }
 
         private ServerSocketChannel jdkChannel() {

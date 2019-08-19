@@ -50,6 +50,10 @@ import java.util.Map;
  */
 public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C extends Channel> implements Cloneable {
 
+    /**
+     * 如果是ServerBootStrap,以下都是针对NioServerSocketChannel的
+     * 如果是BootStrap，对应的就是SocketChannel
+     */
     volatile EventLoopGroup group;
     @SuppressWarnings("deprecation")
     private volatile ChannelFactory<? extends C> channelFactory;
@@ -89,14 +93,21 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * 返回子类对象
+     */
     private B self() {
         return (B) this;
     }
 
     /**
+     * 设置ChannelFactory
+     * <p>
      * The {@link Class} which is used to create {@link Channel} instances from.
      * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.
+     * <p>
+     * 通过Bootstrap的ChannelFactory和用户指定的Channel类型创建用于客户端连接的NioSocketChannel
      */
     public B channel(Class<? extends C> channelClass) {
         return channelFactory(new ReflectiveChannelFactory<C>(
@@ -125,7 +136,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * has a no-args constructor, its highly recommend to just use {@link #channel(Class)} to
      * simplify your code.
      */
-    @SuppressWarnings({ "unchecked", "deprecation" })
+    @SuppressWarnings({"unchecked", "deprecation"})
     public B channelFactory(io.netty.channel.ChannelFactory<? extends C> channelFactory) {
         return channelFactory((ChannelFactory<C>) channelFactory);
     }
@@ -162,6 +173,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     /**
      * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they got
      * created. Use a value of {@code null} to remove a previous set {@link ChannelOption}.
+     * <p>
+     * TCP参数设置接口：无论是异步NIO，还是同步BIO，创建客户端套接字的时候通常都会设置连接参数，例如接收和发送缓冲区大小、连接超时时间等
+     * 在实际项目中，通常需要设置的参数包括：TCP_NODELAY、SO_RCVBUF、SO_SNDBUF、SO_REUSEADDR、SO_BACKLOG、SO_LINGER
      */
     public <T> B option(ChannelOption<T> option, T value) {
         ObjectUtil.checkNotNull(option, "option");
@@ -171,6 +185,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             }
         } else {
             synchronized (options) {
+                // 放入配置选项集合中
                 options.put(option, value);
             }
         }
@@ -230,6 +245,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * Create a new {@link Channel} and bind it.
      */
     public ChannelFuture bind() {
+        // 判断bossGroup和ChannelFactory是否被初始化
         validate();
         SocketAddress localAddress = this.localAddress;
         if (localAddress == null) {
@@ -268,15 +284,18 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 初始化并注册一个NioServerSocketChannel
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
             return regFuture;
         }
 
+        // 等待注册完成
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            // 执行channel的bind
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
@@ -306,7 +325,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            // 服务端channelFactory生产的是NioServerSocketChannel
+            // 客户端channelFactory生产的是NioSocketChannel
             channel = channelFactory.newChannel();
+            // 初始化NioServerSocketChannel或NioSocketChannel
+            // 服务端和客户端是不同的
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -319,6 +342,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
+        // 调用MultithreadEventLoopGroup的register方法
+        // 向boss EventLoopGroup中注册此channel
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -362,8 +387,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * the {@link ChannelHandler} to use for serving the requests.
+     * <p>
+     * 创建默认的ChannelPipeline,用于调度和执行网络事件
      */
     public B handler(ChannelHandler handler) {
+        // 设置的是父类AbstractBootstrap里的成员，也就是该handler是被NioServerSocketChannel使用
         this.handler = ObjectUtil.checkNotNull(handler, "handler");
         return self();
     }
@@ -426,14 +454,14 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     static void setChannelOptions(
             Channel channel, Map<ChannelOption<?>, Object> options, InternalLogger logger) {
-        for (Map.Entry<ChannelOption<?>, Object> e: options.entrySet()) {
+        for (Map.Entry<ChannelOption<?>, Object> e : options.entrySet()) {
             setChannelOption(channel, e.getKey(), e.getValue(), logger);
         }
     }
 
     static void setChannelOptions(
             Channel channel, Map.Entry<ChannelOption<?>, Object>[] options, InternalLogger logger) {
-        for (Map.Entry<ChannelOption<?>, Object> e: options) {
+        for (Map.Entry<ChannelOption<?>, Object> e : options) {
             setChannelOption(channel, e.getKey(), e.getValue(), logger);
         }
     }
@@ -454,8 +482,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     @Override
     public String toString() {
         StringBuilder buf = new StringBuilder()
-            .append(StringUtil.simpleClassName(this))
-            .append('(').append(config()).append(')');
+                .append(StringUtil.simpleClassName(this))
+                .append('(').append(config()).append(')');
         return buf.toString();
     }
 

@@ -15,7 +15,6 @@
   ~ under the License.
   -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.sonatype.oss</groupId>
@@ -889,42 +888,43 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.0.0</version>
-        <executions>
-          <execution>
-            <id>check-style</id>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <phase>validate</phase>
-            <configuration>
-              <consoleOutput>true</consoleOutput>
-              <logViolationsToConsole>true</logViolationsToConsole>
-              <failsOnError>true</failsOnError>
-              <failOnViolation>true</failOnViolation>
-              <configLocation>io/netty/checkstyle.xml</configLocation>
-              <sourceDirectories>
-                <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
-                <sourceDirectory>${project.build.testSourceDirectory}</sourceDirectory>
-              </sourceDirectories>
-            </configuration>
-          </execution>
-        </executions>
-        <dependencies>
-          <dependency>
-            <groupId>com.puppycrawl.tools</groupId>
-            <artifactId>checkstyle</artifactId>
-            <version>8.18</version>
-          </dependency>
-          <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>netty-build</artifactId>
-            <version>${netty.build.version}</version>
-          </dependency>
-        </dependencies>
-      </plugin>
+      <!-- remove maven-checkstyle-plugin -->
+<!--      <plugin>-->
+<!--        <artifactId>maven-checkstyle-plugin</artifactId>-->
+<!--        <version>3.0.0</version>-->
+<!--        <executions>-->
+<!--          <execution>-->
+<!--            <id>check-style</id>-->
+<!--            <goals>-->
+<!--              <goal>check</goal>-->
+<!--            </goals>-->
+<!--            <phase>validate</phase>-->
+<!--            <configuration>-->
+<!--              <consoleOutput>true</consoleOutput>-->
+<!--              <logViolationsToConsole>true</logViolationsToConsole>-->
+<!--              <failsOnError>true</failsOnError>-->
+<!--              <failOnViolation>true</failOnViolation>-->
+<!--              <configLocation>io/netty/checkstyle.xml</configLocation>-->
+<!--              <sourceDirectories>-->
+<!--                <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>-->
+<!--                <sourceDirectory>${project.build.testSourceDirectory}</sourceDirectory>-->
+<!--              </sourceDirectories>-->
+<!--            </configuration>-->
+<!--          </execution>-->
+<!--        </executions>-->
+<!--        <dependencies>-->
+<!--          <dependency>-->
+<!--            <groupId>com.puppycrawl.tools</groupId>-->
+<!--            <artifactId>checkstyle</artifactId>-->
+<!--            <version>8.18</version>-->
+<!--          </dependency>-->
+<!--          <dependency>-->
+<!--            <groupId>${project.groupId}</groupId>-->
+<!--            <artifactId>netty-build</artifactId>-->
+<!--            <version>${netty.build.version}</version>-->
+<!--          </dependency>-->
+<!--        </dependencies>-->
+<!--      </plugin>-->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>xml-maven-plugin</artifactId>
@@ -992,7 +992,7 @@
             </property>
           </properties>
           <jvm>${testJvm}</jvm>
-           <!-- Ensure the whole stacktrace is preserved when an exception is thrown. See https://issues.apache.org/jira/browse/SUREFIRE-1457 -->
+          <!-- Ensure the whole stacktrace is preserved when an exception is thrown. See https://issues.apache.org/jira/browse/SUREFIRE-1457 -->
           <trimStackTrace>false</trimStackTrace>
         </configuration>
       </plugin>

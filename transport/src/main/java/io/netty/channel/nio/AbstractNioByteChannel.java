@@ -23,7 +23,6 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoop;
 import io.netty.channel.FileRegion;
 import io.netty.channel.RecvByteBufAllocator;
 import io.netty.channel.internal.ChannelUtils;
@@ -47,10 +46,13 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             " (expected: " + StringUtil.simpleClassName(ByteBuf.class) + ", " +
             StringUtil.simpleClassName(FileRegion.class) + ')';
 
-    private final Runnable flushTask = () -> {
-        // Calling flush0 directly to ensure we not try to flush messages that were added via write(...) in the
-        // meantime.
-        ((AbstractNioUnsafe) unsafe()).flush0();
+    private final Runnable flushTask = new Runnable() {
+        @Override
+        public void run() {
+            // Calling flush0 directly to ensure we not try to flush messages that were added via write(...) in the
+            // meantime.
+            ((AbstractNioUnsafe) unsafe()).flush0();
+        }
     };
     private boolean inputClosedSeenErrorOnRead;
 
@@ -58,11 +60,10 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
      * Create a new instance
      *
      * @param parent            the parent {@link Channel} by which this instance was created. May be {@code null}
-     * @param eventLoop         the {@link EventLoop} to use for IO.
      * @param ch                the underlying {@link SelectableChannel} on which it operates
      */
-    protected AbstractNioByteChannel(Channel parent, EventLoop eventLoop, SelectableChannel ch) {
-        super(parent, eventLoop, ch, SelectionKey.OP_READ);
+    protected AbstractNioByteChannel(Channel parent, SelectableChannel ch) {
+        super(parent, ch, SelectionKey.OP_READ);
     }
 
     /**
@@ -124,8 +125,6 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             pipeline.fireExceptionCaught(cause);
             if (close || cause instanceof IOException) {
                 closeOnRead(pipeline);
-            } else {
-                readIfIsAutoRead();
             }
         }
 
@@ -145,9 +144,12 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             boolean close = false;
             try {
                 do {
+                    // 获取ByteBuf还可以写入的字节数
                     byteBuf = allocHandle.allocate(allocator);
+                    // 真正的读取，localReadAmount本次读取的实际长度
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
                     if (allocHandle.lastBytesRead() <= 0) {
+                        // 什么都没有读到,跳出循环
                         // nothing was read. release the buffer.
                         byteBuf.release();
                         byteBuf = null;
@@ -161,17 +163,18 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
 
                     allocHandle.incMessagesRead(1);
                     readPending = false;
+                    // 发起调用channelRead，将bytebuf传过去
+                    // 从HandlerContext到解码器，以及pipeline中的一些处理handler
                     pipeline.fireChannelRead(byteBuf);
                     byteBuf = null;
                 } while (allocHandle.continueReading());
 
+                // 读取完之后进行的处理
                 allocHandle.readComplete();
                 pipeline.fireChannelReadComplete();
 
                 if (close) {
                     closeOnRead(pipeline);
-                } else {
-                    readIfIsAutoRead();
                 }
             } catch (Throwable t) {
                 handleReadException(pipeline, byteBuf, t, close, allocHandle);
