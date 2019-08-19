@@ -469,6 +469,9 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             final PoolArena<ByteBuffer> directArena = leastUsedArena(directArenas);
 
             final Thread current = Thread.currentThread();
+
+            // useCacheForAllThreads是全局变量，是否全部线程使用缓存
+            // 或者线程是FastThreadLocalThread即Netty中的IO线程
             if (useCacheForAllThreads || current instanceof FastThreadLocalThread) {
                 final PoolThreadCache cache = new PoolThreadCache(
                         heapArena, directArena, tinyCacheSize, smallCacheSize, normalCacheSize,
@@ -484,19 +487,28 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                 return cache;
             }
             // No caching so just use 0 as sizes.
+            // 其他情况下不使用缓存
             return new PoolThreadCache(heapArena, directArena, 0, 0, 0, 0, 0);
         }
 
+        /**
+         * 当线程生命周期结束时，调用onRemoval进行一些清理操作
+         */
         @Override
         protected void onRemoval(PoolThreadCache threadCache) {
+            // 释放线程缓存中未释放的空间
             threadCache.free(false);
         }
 
+        /**
+         * 使得线程均等使用Arena，每次都寻找被最少线程使用的Arena，这样每个Arena都能均等分到线程数，从而平均Arena的负载
+         */
         private <T> PoolArena<T> leastUsedArena(PoolArena<T>[] arenas) {
             if (arenas == null || arenas.length == 0) {
                 return null;
             }
 
+            // 寻找使用缓存最少的Arena
             PoolArena<T> minArena = arenas[0];
             for (int i = 1; i < arenas.length; i++) {
                 PoolArena<T> arena = arenas[i];

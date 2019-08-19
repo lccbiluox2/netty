@@ -283,6 +283,36 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
+    /**
+     * 服务端启动过程：
+     * 1. 反射创建NioServerSocketChannel->channelFactory.newChannel()入口
+     *  a. newSocket() 调用SelectorProvider.openServerSocketChannel()创建JDK SocketChannel
+     *  b. AbstractNioChannel
+     *      创建id, unsafe, pipeline
+     *      设置监听事件为OP_ACCEPT
+     *      configureBlocking(false) 设置channel的阻塞模式为非阻塞
+     *  c. 新建NioServerSocketChannelConfig(tcp参数配置)
+     * 2. 初始化服务端channel->init(channel)入口
+     *  a. setChanelOptions(tcp相关配置), setChannelAttributes(用户自定义属性),
+     *  b. 保存属性ChildOptions, ChildAttrs
+     *  c. 配置用户自定义服务端处理器pipeline.addLast(config.handler())
+     *  d. 服务端pipeline，增加ServerBootstrapAcceptor Handler，用于给新连接初始化一些属性设置
+     * 3. 注册selector->AbstractChannel.register(channel)入口
+     *  a. this.eventLoop = eventLoop 把nio线程和当前channel绑定
+     *  b. register0() 实际注册、此时isActive为false
+     *      doRegister() 将jdk底层的channel注册到事件轮询器上，并把Netty的channel当做attachment注册上去，后续有轮询到java channel事件可以直接用Netty的Channel去传播处理，此处监听事件为0，表示不关心任何事件。 javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
+     *      invokeHandlerAddedIfNeeded() 回调ServerHandler.handlerAdd()方法
+     *      fireChannelRegistered() 传播channelRegister事件，回调ServerHandler.handlerRegistered()方法
+     * 4. 端口绑定->AbstractUnsafe.bind()入口
+     *  a. doBinid()
+     *      javaChannel().bind(localAddress, config.getBacklog()) jdk底层绑定
+     *  b. pipeline.fireChannelActive() 传播channelRegister事件，回调ServerHandler.handlerActive()方法
+     *      HeaderContext.readIfAutoRead()修改之前监听的事件为Accept
+     *          Tail.read()
+     *              AbstractNioChannel.doBeginRead()，修改监听的事件为Op_Accept
+     * @param localAddress
+     * @return
+     */
     private ChannelFuture doBind(final SocketAddress localAddress) {
         // 初始化并注册一个NioServerSocketChannel
         final ChannelFuture regFuture = initAndRegister();
