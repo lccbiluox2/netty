@@ -286,7 +286,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * 3. 注册selector->AbstractChannel.register(channel)入口
      *  a. this.eventLoop = eventLoop 把nio线程和当前channel绑定
      *  b. register0() 实际注册、此时isActive为false
-     *      doRegister() 将jdk底层的channel注册到事件轮询器上，并把Netty的channel当做attachment注册上去，后续有轮询到java channel事件可以直接用Netty的Channel去传播处理，此处监听事件为0，表示不关心任何事件。 javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
+     *      doRegister() 将jdk底层的channel注册到事件轮询器上，并把Netty的channel当做attachment注册上去，后续有轮询到java
+     *      channel事件可以直接用Netty的Channel去传播处理，此处监听事件为0，表示不关心任何事件。
+     *      javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
      *      invokeHandlerAddedIfNeeded() 回调ServerHandler.handlerAdd()方法
      *      fireChannelRegistered() 传播channelRegister事件，回调ServerHandler.handlerRegistered()方法
      * 4. 端口绑定->AbstractUnsafe.bind()入口
@@ -338,6 +340,12 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    /**
+     * 初始化什么？注册什么？
+     *
+     *
+     * @return
+     */
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
