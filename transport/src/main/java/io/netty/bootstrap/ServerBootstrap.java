@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * {@link Bootstrap} sub-class which allows easy bootstrap of {@link ServerChannel}
  *
+ * ServerBootstrap : ServerBootstrap 是 Bootstrap 的一个子类，可以让我们快速的启动 ServerChannel
  */
 public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerChannel> {
 
@@ -48,6 +49,12 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     private final Map<ChannelOption<?>, Object> childOptions = new ConcurrentHashMap<ChannelOption<?>, Object>();
     private final Map<AttributeKey<?>, Object> childAttrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
     private final ServerBootstrapConfig config = new ServerBootstrapConfig(this);
+    /**
+     * volatile作用：
+     * 1. 确保编译的时候，不会出现指令重排序
+     * 2. 保证一个事件一定是发生在另一个事件之前
+     * 3. 确保一个线程中修改，对另外有的线程可见
+     */
     private volatile EventLoopGroup childGroup;
     private volatile ChannelHandler childHandler;
 
@@ -75,6 +82,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
      * Set the {@link EventLoopGroup} for the parent (acceptor) and the child (client). These
      * {@link EventLoopGroup}'s are used to handle all the events and IO for {@link ServerChannel} and
      * {@link Channel}'s.
+     *
+     * parentGroup 负责接收客户端的请求，然后将请求交给客户端（childGroup）去处理，处理所有的事件，以及输入输出。
      */
     public ServerBootstrap group(EventLoopGroup parentGroup, EventLoopGroup childGroup) {
         super.group(parentGroup);

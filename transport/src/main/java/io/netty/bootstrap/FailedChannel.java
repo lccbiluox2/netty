@@ -29,13 +29,18 @@ final class FailedChannel extends AbstractChannel {
     private static final ChannelMetadata METADATA = new ChannelMetadata(false);
     private final ChannelConfig config = new DefaultChannelConfig(this);
 
-    FailedChannel(EventLoop eventLoop) {
-        super(null, eventLoop);
+    FailedChannel() {
+        super(null);
     }
 
     @Override
     protected AbstractUnsafe newUnsafe() {
         return new FailedChannelUnsafe();
+    }
+
+    @Override
+    protected boolean isCompatible(EventLoop loop) {
+        return false;
     }
 
     @Override

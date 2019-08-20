@@ -18,9 +18,11 @@ package io.netty.channel;
 /**
  * Creates a new {@link Channel}.
  */
-public interface ChannelFactory<T extends Channel> {
+@SuppressWarnings({ "ClassNameSameAsAncestorName", "deprecation" })
+public interface ChannelFactory<T extends Channel> extends io.netty.bootstrap.ChannelFactory<T> {
     /**
      * Creates a new channel.
      */
-    T newChannel(EventLoop eventLoop) throws Exception;
+    @Override
+    T newChannel();
 }

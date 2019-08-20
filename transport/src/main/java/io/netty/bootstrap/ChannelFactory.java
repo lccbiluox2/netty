@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2013 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,17 +13,17 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package io.netty.channel;
+package io.netty.bootstrap;
 
-import io.netty.channel.socket.ServerSocketChannel;
+import io.netty.channel.Channel;
 
 /**
- * A {@link Channel} that accepts an incoming connection attempt and creates
- * its child {@link Channel}s by accepting them. {@link ServerSocketChannel} is
- * a good example.
- *
- * ServerChannel ： ServerChannel 将会接收客户端的请求，并且创建 child Channel ，child Channel 是真正处理客户端的请求。
+ * @deprecated Use {@link io.netty.channel.ChannelFactory} instead.
  */
-public interface ServerChannel extends Channel {
-    // This is a tag interface.
+@Deprecated
+public interface ChannelFactory<T extends Channel> {
+    /**
+     * Creates a new channel.
+     */
+    T newChannel();
 }

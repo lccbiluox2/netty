@@ -21,7 +21,7 @@ import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
-import static java.util.Objects.requireNonNull;
+import static io.netty.util.internal.ObjectUtil.checkNotNull;
 
 /**
  * The default {@link ChannelPromise} implementation.  It is recommended to use {@link Channel#newPromise()} to create
@@ -37,20 +37,32 @@ public class DefaultChannelPromise extends DefaultPromise<Void> implements Chann
     /**
      * Creates a new instance.
      *
-     * @param channel the {@link Channel} associated with this future
+     * @param channel
+     *        the {@link Channel} associated with this future
      */
     public DefaultChannelPromise(Channel channel) {
-        this(channel, channel.eventLoop());
+        this.channel = checkNotNull(channel, "channel");
     }
 
     /**
      * Creates a new instance.
      *
-     * @param channel the {@link Channel} associated with this future
+     * @param channel
+     *        the {@link Channel} associated with this future
      */
     public DefaultChannelPromise(Channel channel, EventExecutor executor) {
         super(executor);
-        this.channel = requireNonNull(channel, "channel");
+        this.channel = checkNotNull(channel, "channel");
+    }
+
+    @Override
+    protected EventExecutor executor() {
+        EventExecutor e = super.executor();
+        if (e == null) {
+            return channel().eventLoop();
+        } else {
+            return e;
+        }
     }
 
     @Override

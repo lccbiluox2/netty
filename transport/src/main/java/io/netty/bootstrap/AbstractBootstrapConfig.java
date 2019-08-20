@@ -15,15 +15,12 @@
  */
 package io.netty.bootstrap;
 
-import static java.util.Objects.requireNonNull;
-
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFactory;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.ServerChannelFactory;
 import io.netty.util.AttributeKey;
+import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.StringUtil;
 
 import java.net.SocketAddress;
@@ -32,12 +29,12 @@ import java.util.Map;
 /**
  * Exposes the configuration of an {@link AbstractBootstrap}.
  */
-public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C, F>, C extends Channel, F> {
+public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C>, C extends Channel> {
 
     protected final B bootstrap;
 
-    AbstractBootstrapConfig(B bootstrap) {
-        this.bootstrap = requireNonNull(bootstrap, "bootstrap");
+    protected AbstractBootstrapConfig(B bootstrap) {
+        this.bootstrap = ObjectUtil.checkNotNull(bootstrap, "bootstrap");
     }
 
     /**
@@ -48,11 +45,12 @@ public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C, 
     }
 
     /**
-     * Returns the configured {@link ChannelFactory} / {@link ServerChannelFactory} or {@code null}
-     * if non is configured yet.
+     * Returns the configured {@link ChannelFactory} or {@code null} if non is configured yet.
      */
     @SuppressWarnings("deprecation")
-    public abstract F channelFactory();
+    public final ChannelFactory<? extends C> channelFactory() {
+        return bootstrap.channelFactory();
+    }
 
     /**
      * Returns the configured {@link ChannelHandler} or {@code null} if non is configured yet.
@@ -95,7 +93,7 @@ public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C, 
                     .append(", ");
         }
         @SuppressWarnings("deprecation")
-        F factory = channelFactory();
+        ChannelFactory<? extends C> factory = channelFactory();
         if (factory != null) {
             buf.append("channelFactory: ")
                     .append(factory)
