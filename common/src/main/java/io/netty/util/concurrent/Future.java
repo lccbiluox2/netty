@@ -21,7 +21,11 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The result of an asynchronous operation.
- * 异步操作的结果
+ * 异步操作的结果.
+ *
+ * 问题：netty为什么会重写了Java的Future方法，并且增加新的方法呢？
+ *  因为future的get方法是一个尴尬的方法，因为这个方法调用会一直阻塞到得到结果，一旦调用就会阻塞，而且我们不知道什么时候去调用这个方法。
+ *  netty的listener方法就在一部分程度上解决了这个问题。
  */
 @SuppressWarnings("ClassNameSameAsAncestorName")
 public interface Future<V> extends java.util.concurrent.Future<V> {
@@ -29,7 +33,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
     /**
      * Returns {@code true} if and only if the I/O operation was completed
      * successfully.
-     * 如果 IO 操作成功完成，返回 true
+     * 如果 IO 操作成功完成，返回 true,isSuccess是isDone方法的一个特例。
      */
     boolean isSuccess();
 
@@ -62,6 +66,8 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      *
      * 将指定的侦听器添加到此 future, 当这个 future 处于 isDone() 状态的时候指定的监听器会接到通知
      * 如果这个 future 已经完成后，指定的侦听器会立即收到通知
+     *
+     * 这里实际用到了观察者模式
      */
     Future<V> addListener(GenericFutureListener<? extends Future<? super V>> listener);
 
@@ -98,7 +104,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * Waits for this future until it is done, and rethrows the cause of the failure if this future
      * failed.
      *
-     * 等待这个 Future，直到完成为止，如果这个 Future 失败了，就会重新引发失败的原因。
+     * 等待这个 Future，直到完成为止，如果这个 Future 失败了，就会重新抛出失败的原因。
      */
     Future<V> sync() throws InterruptedException;
 
@@ -106,7 +112,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * Waits for this future until it is done, and rethrows the cause of the failure if this future
      * failed.
      *
-     * 等待这个 Future，直到完成为止，如果这个 Future 失败了，就会重新引发失败的原因。
+     * 等待这个 Future，直到完成为止，如果这个 Future 失败了，就会重新抛出失败的原因。
      */
     Future<V> syncUninterruptibly();
 
@@ -115,6 +121,8 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      *
      * @throws InterruptedException
      *         if the current thread was interrupted
+     *
+     * 等待future 完成
      */
     Future<V> await() throws InterruptedException;
 
@@ -174,6 +182,10 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      *
      * As it is possible that a {@code null} value is used to mark the future as successful you also need to check
      * if the future is really done with {@link #isDone()} and not rely on the returned {@code null} value.
+     *
+     * 没有阻塞的返回结果，如果 future 没有完成，那么将会返回空。
+     *
+     * 不要依赖null值去判断是否完成，因为结果可能就是返回null，因此你需要调用 isDone 方法去判断。因为 Runable 永远返回 null.
      */
     V getNow();
 

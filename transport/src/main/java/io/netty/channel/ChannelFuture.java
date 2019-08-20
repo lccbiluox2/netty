@@ -31,6 +31,10 @@ import java.util.concurrent.TimeUnit;
  * been completed at the end of the call.  Instead, you will be returned with
  * a {@link ChannelFuture} instance which gives you the information about the
  * result or status of the I/O operation.
+ *
+ * 这个是一个异步获取 I/O  操作的 Channel.
+ * 在Netty中所有的 I/O 操作都是异步的。这意味着在IO调用后会直接返回。并且给你返回一个 ChannelFuture。
+ *
  * <p>
  * A {@link ChannelFuture} is either <em>uncompleted</em> or <em>completed</em>.
  * When an I/O operation begins, a new future object is created.  The new future
@@ -41,6 +45,8 @@ import java.util.concurrent.TimeUnit;
  * failure.  Please note that even failure and cancellation belong to the
  * completed state.
  * <pre>
+ *
+ *
  *                                      +---------------------------+
  *                                      | Completed successfully    |
  *                                      +---------------------------+
@@ -161,6 +167,9 @@ import java.util.concurrent.TimeUnit;
  *     // Connection established successfully
  * }
  * </pre>
+ *
+ *
+ *
  */
 public interface ChannelFuture extends Future<Void> {
 
