@@ -23,6 +23,8 @@ import java.util.concurrent.locks.LockSupport;
 
 /**
  * Expose helper methods which create different {@link RejectedExecutionHandler}s.
+ *
+ * 拒绝执行处理器，意思是什么时候，不去执行用户的任务。
  */
 public final class RejectedExecutionHandlers {
     private static final RejectedExecutionHandler REJECT = (task, executor) -> {

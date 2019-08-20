@@ -24,6 +24,10 @@ import io.netty.util.concurrent.Promise;
  */
 public interface ChannelPromise extends ChannelFuture, Promise<Void> {
 
+    /**
+     * 包含了一个 Channel 的引用
+     * @return
+     */
     @Override
     Channel channel();
 

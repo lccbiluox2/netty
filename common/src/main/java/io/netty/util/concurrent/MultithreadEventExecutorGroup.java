@@ -15,65 +15,39 @@
  */
 package io.netty.util.concurrent;
 
-import io.netty.util.internal.EmptyArrays;
-
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@link EventExecutorGroup} implementation that handles their tasks with multiple threads at
+ * Abstract base class for {@link EventExecutorGroup} implementations that handles their tasks with multiple threads at
  * the same time.
  */
-public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
+public abstract class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
 
     /**
      * 线程数组
      */
-    private final EventExecutor[] children;
-    private final List<EventExecutor> readonlyChildren;
+    private final EventExecutor[] children ;
+    private final Set<EventExecutor> readonlyChildren;
     private final AtomicInteger terminatedChildren = new AtomicInteger();
     private final Promise<?> terminationFuture = new DefaultPromise(GlobalEventExecutor.INSTANCE);
-    private final boolean powerOfTwo;
+    private final EventExecutorChooserFactory.EventExecutorChooser chooser;
 
     /**
      * Create a new instance.
      *
      * @param nThreads          the number of threads that will be used by this instance.
      * @param threadFactory     the ThreadFactory to use, or {@code null} if the default should be used.
+     * @param args              arguments which will passed to each {@link #newChild(Executor, Object...)} call
      */
-    public MultithreadEventExecutorGroup(int nThreads, ThreadFactory threadFactory) {
-        this(nThreads, threadFactory, SingleThreadEventExecutor.DEFAULT_MAX_PENDING_EXECUTOR_TASKS,
-                RejectedExecutionHandlers.reject());
-    }
-
-    /**
-     * Create a new instance.
-     *
-     * @param nThreads          the number of threads that will be used by this instance.
-     * @param executor          the {@link Executor} to use, or {@code null} if the default should be used.
-     */
-    public MultithreadEventExecutorGroup(int nThreads, Executor executor) {
-        this(nThreads, executor, SingleThreadEventExecutor.DEFAULT_MAX_PENDING_EXECUTOR_TASKS,
-                RejectedExecutionHandlers.reject());
-    }
-
-    /**
-     * Create a new instance.
-     *
-     * @param nThreads          the number of threads that will be used by this instance.
-     * @param threadFactory     the {@link ThreadFactory} to use, or {@code null} if the default should be used.
-     * @param maxPendingTasks   the maximum number of pending tasks before new tasks will be rejected.
-     * @param rejectedHandler   the {@link RejectedExecutionHandler} to use.
-     */
-    public MultithreadEventExecutorGroup(int nThreads, ThreadFactory threadFactory,
-                                         int maxPendingTasks, RejectedExecutionHandler rejectedHandler) {
-        this(nThreads, threadFactory, maxPendingTasks, rejectedHandler, EmptyArrays.EMPTY_OBJECTS);
+    protected MultithreadEventExecutorGroup(int nThreads, ThreadFactory threadFactory, Object... args) {
+        this(nThreads, threadFactory == null ? null : new ThreadPerTaskExecutor(threadFactory), args);
     }
 
     /**
@@ -81,65 +55,46 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
      *
      * @param nThreads          the number of threads that will be used by this instance.
      * @param executor          the Executor to use, or {@code null} if the default should be used.
-     * @param maxPendingTasks   the maximum number of pending tasks before new tasks will be rejected.
-     * @param rejectedHandler   the {@link RejectedExecutionHandler} to use.
+     * @param args              arguments which will passed to each {@link #newChild(Executor, Object...)} call
      */
-    public MultithreadEventExecutorGroup(int nThreads, Executor executor,
-                                         int maxPendingTasks, RejectedExecutionHandler rejectedHandler) {
-        this(nThreads, executor, maxPendingTasks, rejectedHandler, EmptyArrays.EMPTY_OBJECTS);
+    protected MultithreadEventExecutorGroup(int nThreads, Executor executor, Object... args) {
+        this(nThreads, executor, DefaultEventExecutorChooserFactory.INSTANCE, args);
     }
 
     /**
      * Create a new instance.
      *
-     * @param nThreads          the number of threads that will be used by this instance.
-     * @param threadFactory     the ThreadFactory to use, or {@code null} if the default should be used.
-     * @param maxPendingTasks   the maximum number of pending tasks before new tasks will be rejected.
-     * @param rejectedHandler   the {@link RejectedExecutionHandler} to use.
-     * @param args              arguments which will passed to each {@link #newChild(Executor, int,
-     * RejectedExecutionHandler, Object...)} call
-     */
-    protected MultithreadEventExecutorGroup(int nThreads, ThreadFactory threadFactory, int maxPendingTasks,
-                                            RejectedExecutionHandler rejectedHandler, Object... args) {
-        this(nThreads, threadFactory == null ? null : new ThreadPerTaskExecutor(threadFactory),
-                maxPendingTasks, rejectedHandler, args);
-    }
-
-    /**
-     * Create a new instance.
+     *    创建NioEventLoopGroup
+     *    1. new ThreadPerTaskExecutor(newDefaultThreadFactory()); 创建事件处理器
+     *    2. for(){new child()}  构造NioEventLoop
+     *    3. chooseFactory.newChooser() 创建线程选择器
      *
-     * 创建NioEventLoopGroup
-     * 1. new ThreadPerTaskExecutor(newDefaultThreadFactory()); 创建事件处理器
-     * 2. for(){new child()}  构造NioEventLoop
-     * 3. chooseFactory.newChooser() 创建线程选择器
      *
      * @param nThreads          the number of threads that will be used by this instance.
      * @param executor          the Executor to use, or {@code null} if the default should be used.
-     * @param maxPendingTasks   the maximum number of pending tasks before new tasks will be rejected.
-     * @param rejectedHandler   the {@link RejectedExecutionHandler} to use.
-     * @param args              arguments which will passed to each {@link #newChild(Executor, int,
-     * RejectedExecutionHandler, Object...)} call
+     * @param chooserFactory    the {@link EventExecutorChooserFactory} to use.
+     * @param args              arguments which will passed to each {@link #newChild(Executor, Object...)} call
      */
-    protected MultithreadEventExecutorGroup(int nThreads, Executor executor, int maxPendingTasks,
-                                            RejectedExecutionHandler rejectedHandler, Object... args) {
+    protected MultithreadEventExecutorGroup(int nThreads, Executor executor,
+                                            EventExecutorChooserFactory chooserFactory, Object... args) {
         if (nThreads <= 0) {
             throw new IllegalArgumentException(String.format("nThreads: %d (expected: > 0)", nThreads));
         }
 
         if (executor == null) {
-            executor = new ThreadPerTaskExecutor(new DefaultThreadFactory(getClass()));
+            executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
 
         children = new EventExecutor[nThreads];
-        powerOfTwo = isPowerOfTwo(children.length);
+
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
-                children[i] = newChild(executor, maxPendingTasks, rejectedHandler, args);
+                children[i] = newChild(executor, args);
                 success = true;
             } catch (Exception e) {
                 // TODO: Think about if this is a good exception type
-                throw new IllegalStateException("failed to create a child event executor", e);
+                throw new IllegalStateException("failed to create a child event loop", e);
             } finally {
                 if (!success) {
                     for (int j = 0; j < i; j ++) {
@@ -162,46 +117,42 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
             }
         }
 
-        final FutureListener<Object> terminationListener = future -> {
-            if (terminatedChildren.incrementAndGet() == children.length) {
-                terminationFuture.setSuccess(null);
+        chooser = chooserFactory.newChooser(children);
+
+        final FutureListener<Object> terminationListener = new FutureListener<Object>() {
+            @Override
+            public void operationComplete(Future<Object> future) throws Exception {
+                if (terminatedChildren.incrementAndGet() == children.length) {
+                    terminationFuture.setSuccess(null);
+                }
             }
         };
 
         for (EventExecutor e: children) {
             e.terminationFuture().addListener(terminationListener);
         }
-        readonlyChildren = Collections.unmodifiableList(Arrays.asList(children));
-    }
 
-    private final AtomicInteger idx = new AtomicInteger();
-
-    /**
-     * The {@link EventExecutor}s that are used by this {@link MultithreadEventExecutorGroup}.
-     */
-    protected final List<EventExecutor> executors() {
-        return readonlyChildren;
+        Set<EventExecutor> childrenSet = new LinkedHashSet<EventExecutor>(children.length);
+        Collections.addAll(childrenSet, children);
+        readonlyChildren = Collections.unmodifiableSet(childrenSet);
     }
 
     /**
-     * Returns the next {@link EventExecutor} to use. The default implementation will use round-robin, but you may
-     * override this to change the selection algorithm.
+     * 生成一个默认的线程工厂，传入了当前类的实例
+     * @return
      */
+    protected ThreadFactory newDefaultThreadFactory() {
+        return new DefaultThreadFactory(getClass());
+    }
+
     @Override
     public EventExecutor next() {
-        if (powerOfTwo) {
-            return children[idx.getAndIncrement() & children.length - 1];
-        }
-        return children[Math.abs(idx.getAndIncrement() % children.length)];
-    }
-
-    private static boolean isPowerOfTwo(int val) {
-        return (val & -val) == val;
+        return chooser.next();
     }
 
     @Override
     public Iterator<EventExecutor> iterator() {
-        return executors().iterator();
+        return readonlyChildren.iterator();
     }
 
     /**
@@ -209,22 +160,16 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
      * 1:1 to the threads it use.
      */
     public final int executorCount() {
-        return executors().size();
+        return children.length;
     }
 
     /**
-     * Create a new EventExecutor which will later then accessible via the {@link #next()} method. This method will be
+     * Create a new EventExecutor which will later then accessible via the {@link #next()}  method. This method will be
      * called for each thread that will serve this {@link MultithreadEventExecutorGroup}.
      *
-     * As this method is called from within the constructor you can only use the parameters passed into the method when
-     * overriding this method.
+     * 创建一个 EventExecutor 这个可以被 next() 方法访问到，
      */
-    protected EventExecutor newChild(Executor executor,  int maxPendingTasks,
-                                     RejectedExecutionHandler rejectedExecutionHandler,
-                                     Object... args) {
-        assert args.length == 0;
-        return new SingleThreadEventExecutor(executor, maxPendingTasks, rejectedExecutionHandler);
-    }
+    protected abstract EventExecutor newChild(Executor executor, Object... args) throws Exception;
 
     /**
      * 遍历EventLoop数组，循环调用他们的shutdownGracefully方法
@@ -236,7 +181,7 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
      * @return
      */
     @Override
-    public final Future<?> shutdownGracefully(long quietPeriod, long timeout, TimeUnit unit) {
+    public Future<?> shutdownGracefully(long quietPeriod, long timeout, TimeUnit unit) {
         for (EventExecutor l: children) {
             l.shutdownGracefully(quietPeriod, timeout, unit);
         }
@@ -244,20 +189,20 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
     }
 
     @Override
-    public final Future<?> terminationFuture() {
+    public Future<?> terminationFuture() {
         return terminationFuture;
     }
 
     @Override
     @Deprecated
-    public final void shutdown() {
+    public void shutdown() {
         for (EventExecutor l: children) {
             l.shutdown();
         }
     }
 
     @Override
-    public final boolean isShuttingDown() {
+    public boolean isShuttingDown() {
         for (EventExecutor l: children) {
             if (!l.isShuttingDown()) {
                 return false;
@@ -267,7 +212,7 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
     }
 
     @Override
-    public final boolean isShutdown() {
+    public boolean isShutdown() {
         for (EventExecutor l: children) {
             if (!l.isShutdown()) {
                 return false;
@@ -277,7 +222,7 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
     }
 
     @Override
-    public final boolean isTerminated() {
+    public boolean isTerminated() {
         for (EventExecutor l: children) {
             if (!l.isTerminated()) {
                 return false;
@@ -287,7 +232,7 @@ public class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
     }
 
     @Override
-    public final boolean awaitTermination(long timeout, TimeUnit unit)
+    public boolean awaitTermination(long timeout, TimeUnit unit)
             throws InterruptedException {
         long deadline = System.nanoTime() + unit.toNanos(timeout);
         loop: for (EventExecutor l: children) {

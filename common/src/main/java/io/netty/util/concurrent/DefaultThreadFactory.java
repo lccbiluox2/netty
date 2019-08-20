@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A {@link ThreadFactory} implementation with a simple naming rule.
+ *
+ * 这是一个ThreadFactory 的实现，同时实现了简单的命名规则
  */
 public class DefaultThreadFactory implements ThreadFactory {
 
@@ -38,6 +40,8 @@ public class DefaultThreadFactory implements ThreadFactory {
     protected final ThreadGroup threadGroup;
 
     public DefaultThreadFactory(Class<?> poolType) {
+        // false 不是后台守护线程
+        // 线程的优先级 NORM_PRIORITY
         this(poolType, false, Thread.NORM_PRIORITY);
     }
 
@@ -61,13 +65,19 @@ public class DefaultThreadFactory implements ThreadFactory {
         this(poolName, false, priority);
     }
 
+    /**
+     *
+     * @param poolType
+     * @param daemon
+     * @param priority
+     */
     public DefaultThreadFactory(Class<?> poolType, boolean daemon, int priority) {
         this(toPoolName(poolType), daemon, priority);
     }
 
     public static String toPoolName(Class<?> poolType) {
         requireNonNull(poolType, "poolType");
-
+        // 获取 类的短名称
         String poolName = StringUtil.simpleClassName(poolType);
         switch (poolName.length()) {
             case 0:
