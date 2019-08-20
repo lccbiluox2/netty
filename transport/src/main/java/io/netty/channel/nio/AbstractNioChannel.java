@@ -248,12 +248,14 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
                 boolean wasActive = isActive();
                 if (doConnect(remoteAddress, localAddress)) {
+                    // 设置promise
                     fulfillConnectPromise(promise, wasActive);
                 } else {
                     connectPromise = promise;
                     requestedRemoteAddress = remoteAddress;
 
                     // Schedule connect timeout.
+                    // 支持连接超时机制
                     int connectTimeoutMillis = config().getConnectTimeoutMillis();
                     if (connectTimeoutMillis > 0) {
                         connectTimeoutFuture = eventLoop().schedule(new Runnable() {
@@ -304,6 +306,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             // Regardless if the connection attempt was cancelled, channelActive() event should be triggered,
             // because what happened is what happened.
             if (!wasActive && active) {
+                // 如果connect成功，最终会注册read事件
+                // pipeline.read() -> tail.read() -> **** -> head.read() -> unsafe.beginRead() -> doBeginRead() ->
+                // real操作
                 pipeline().fireChannelActive();
             }
 
@@ -324,16 +329,22 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             closeIfClosed();
         }
 
+        /**
+         * 当发生OP_CONNECT事件时，最终会调用unsafe.finishConnect
+         */
         @Override
         public final void finishConnect() {
             // Note this method is invoked by the event loop only if the connection attempt was
             // neither cancelled nor timed out.
 
+            // 表达式结果为真，那么断言为真。如果表达式为false，则断言失败，会抛出一个AssertionError，表达系统级运行错误
             assert eventLoop().inEventLoop();
 
             try {
                 boolean wasActive = isActive();
+                // 判断JDK的SocketChannel连接结果
                 doFinishConnect();
+                // 触发连接激活事件
                 fulfillConnectPromise(connectPromise, wasActive);
             } catch (Throwable t) {
                 fulfillConnectPromise(connectPromise, annotateConnectException(t, requestedRemoteAddress));

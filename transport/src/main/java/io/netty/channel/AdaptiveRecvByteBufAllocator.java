@@ -35,6 +35,9 @@ import static java.lang.Math.min;
 public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufAllocator {
 
     static final int DEFAULT_MINIMUM = 64;
+    /**
+     * 默认初始化大小是1024
+     */
     static final int DEFAULT_INITIAL = 1024;
     static final int DEFAULT_MAXIMUM = 65536;
 
@@ -43,6 +46,7 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
 
     private static final int[] SIZE_TABLE;
 
+    // 初始化SIZE_TABLE
     static {
         List<Integer> sizeTable = new ArrayList<Integer>();
         for (int i = 16; i < 512; i += 16) {
@@ -116,6 +120,9 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
             super.lastBytesRead(bytes);
         }
 
+        /**
+         * 预估下一次接数据ByteBuf的大小
+         */
         @Override
         public int guess() {
             return nextReceiveBufferSize;

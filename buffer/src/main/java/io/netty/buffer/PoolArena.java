@@ -29,6 +29,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 import static java.lang.Math.max;
 
+/**
+ * Arena代表1个内存区域，为了优化内存区域的并发访问，netty中内存池是由多个Arena组成的数组，
+ * 分配时会每个线程按照轮询策略选择1个Arena进行内存分配
+ */
 abstract class PoolArena<T> implements PoolArenaMetric {
     static final boolean HAS_UNSAFE = PlatformDependent.hasUnsafe();
 
@@ -38,26 +42,93 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         Normal
     }
 
+    /**
+     * Tiny级别的个数，每次递增2^4b，Tiny总共管理32个等级的小内存片: [16,32,48, ... ,496]，注意实际只有31个级别内存块
+     */
     static final int numTinySubpagePools = 512 >>> 4;
 
+    /**
+     * 全局默认唯一的分配者，PooledByteBufAllocator.DEFAULT
+     */
     final PooledByteBufAllocator parent;
 
+    /**
+     * log(16m/8k)=11，指的是Normal类型的内存等级，分别为[8k,16k,32k, ... ,16m]
+     */
     private final int maxOrder;
+    /**
+     * 默认8k
+     */
     final int pageSize;
+    /**
+     * log(8k)=13
+     */
     final int pageShifts;
+    /**
+     * 默认16m
+     */
     final int chunkSize;
+    /**
+     * -8192
+     */
     final int subpageOverflowMask;
+    /**
+     * 指的是Small类型的内存等级: pageShifts - log(512) = 4，分别为[512,1k,2k,4k]
+     */
     final int numSmallSubpagePools;
     final int directMemoryCacheAlignment;
     final int directMemoryCacheAlignmentMask;
+    /**
+     * PoolSubpage用于分配小于8k的内存
+     *
+     * 用于分配小于512字节的内存，默认长度为32，因为内存分配最小为16，每次增加16，直到512，区间[16，512)一共有32个不同值
+     */
+    /**
+     * 数组默认长度为32(512 >>4)
+     * Netty认为小于512子节的内存为小内存即tiny tiny按照16字节递增 比如[16,32,48,...,512]
+     * Tiny类型分为31个等级，每个等级都可以存放一个链（元素为PoolSubpage），可存放未分配的该范围的内存块
+     */
     private final PoolSubpage<T>[] tinySubpagePools;
+    /**
+     * Netty认为大于等于512小于pageSize(8192)的内存空间为small
+     * small内存是翻倍来组织，也就是会产生[0,1024),[1024,2048),[2048,4096),[4096,8192)
+     * [512,1k,2k,4k]
+     * Small类型分为4个等级，每个等级都可以存放一个链（元素为PoolSubpage），可存放未分配的该范围的内存块
+     */
     private final PoolSubpage<T>[] smallSubpagePools;
 
+    /**
+     * poolChunkList用于分配大于8k的内存
+     * 多个ChunkList按照双向链表排列,每个ChunkList中包含的Chunk数量都会动态变化，当该Chunk中的内存利用率发生变化时会向其他ChunkList中移动
+     * <p>
+     */
+    /**
+     * 存储内存利用率50-100%的chunk
+     * 若q050中某个PoolChunk使用率小于50%之后，该PoolChunk被移动到q025
+     */
     private final PoolChunkList<T> q050;
+    /**
+     * 存储内存利用率25-75%的chunk
+     * 若q025中某个PoolChunk使用率大于25%之后，该PoolChunk被移动到q050
+     */
     private final PoolChunkList<T> q025;
+    /**
+     * 存储内存利用率1-50%的chunk
+     * 若q000使用率为0，会被释放掉
+     */
     private final PoolChunkList<T> q000;
+    /**
+     * 存储内存利用率0-25%的chunk
+     * 若qInit使用率为0，也不会释放该节点
+     */
     private final PoolChunkList<T> qInit;
+    /**
+     * 存储内存利用率75-100%的chunk
+     */
     private final PoolChunkList<T> q075;
+    /**
+     * 存储内存利用率为100%的chunk
+     */
     private final PoolChunkList<T> q100;
 
     private final List<PoolChunkListMetric> chunkListMetrics;
@@ -77,7 +148,10 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     // We need to use the LongCounter here as this is not guarded via synchronized block.
     private final LongCounter deallocationsHuge = PlatformDependent.newLongCounter();
 
-    // Number of thread caches backed by this arena.
+    /**
+     * Number of thread caches backed by this arena.
+     * 该PoolArena被多少线程引用
+     */
     final AtomicInteger numThreadCaches = new AtomicInteger();
 
     // TODO: Test if adding padding helps under contention
@@ -142,6 +216,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     abstract boolean isDirect();
 
+    /**
+     * 内存分配入口方法
+     * @param cache
+     * @param reqCapacity
+     * @param maxCapacity
+     * @return
+     */
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
         allocate(cache, buf, reqCapacity);
@@ -162,18 +243,44 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         return tableIdx;
     }
 
-    // capacity < pageSize
+    /**
+     * capacity < pageSize
+     */
     boolean isTinyOrSmall(int normCapacity) {
         return (normCapacity & subpageOverflowMask) == 0;
     }
 
-    // normCapacity < 512
+    /**
+     * normCapacity < 512
+     */
     static boolean isTiny(int normCapacity) {
         return (normCapacity & 0xFFFFFE00) == 0;
     }
 
+    /**
+     * 总结:内存池包含两层分配区：线程私有分配区和内存池公有分配区。当内存被分配给某个线程之后在释放内存时释放的内存不会直接返回给公有分配区，
+     * 而是直接在线程私有分配区中缓存，当线程频繁的申请内存时会提高分配效率。同时当线程申请内存的动作不活跃时可能会造成内存浪费的情况，
+     * 这时候内存池会对线程私有分配区中的情况进行监控，当发现线程的分配活动并不活跃时会把线程缓存的内存块释放返回给公有区。
+     * 在整个内存分配时可能会出现分配的内存过大导致内存池无法分配的情况，这时候就需要JVM堆直接分配，所以严格的讲有三层分配区
+
+     * 分配内存时默认先尝试从PoolThreadCache中分配内存，PoolThreadCache利用ThreadLocal的特性消除了多线程竞争，提高内存分配效率。
+     * 首次分配时PoolThreadCache中并没有可用内存进行分配，当上一次分配的内存使用完并释放时，会将其加入到PoolThreadCache中，
+     * 提供该线程下次申请时使用。分配的内存大小小于512时内存池分配Tiny块，大小在[512，PageSize]区间时分配Small块，
+     * Tiny块和Small块基于Page分配，分配的大小在(PageSize，ChunkSize]区间时分配Normal块，Normal块基于Chunk分配，
+     * 内存大小超过Chunk内存池无法分配这种大内存，直接由JVM堆分配并且内存池也不会缓存这种内存
+     *
+     * @param cache 线程私有分配缓存区
+     * @param buf
+     * @param reqCapacity
+     */
+    /**
+     * 默认先尝试从poolThreadCache中分配内存，PoolThreadCache利用ThreadLocal的特性，消除了多线程竞争，提高内存分配效率；
+     * 首次分配时，poolThreadCache中并没有可用内存进行分配，当上一次分配的内存使用完并释放时，会将其加入到poolThreadCache中，提供该线程下次申请时使用
+     */
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
+        // 将需要分配的内存规格化，既凑整，变成最接近的2的幂次方，比如1000，变成1024
         final int normCapacity = normalizeCapacity(reqCapacity);
+        // 判断需要申请的内存是否小于pageSize
         if (isTinyOrSmall(normCapacity)) { // capacity < pageSize
             int tableIdx;
             PoolSubpage<T>[] table;
@@ -186,6 +293,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                 tableIdx = tinyIdx(normCapacity);
                 table = tinySubpagePools;
             } else {
+                // small
                 if (cache.allocateSmall(this, buf, reqCapacity, normCapacity)) {
                     // was able to allocate out of the cache so move on
                     return;
@@ -200,6 +308,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
              * Synchronize on the head. This is needed as {@link PoolChunk#allocateSubpage(int)} and
              * {@link PoolChunk#free(long)} may modify the doubly linked list as well.
              */
+            // 走到这里说明尝试在poolThreadCache中分配失败
+            // 开始尝试借用tinySubpagePools或smallSubpagePools缓存中的Page来进行分配
             synchronized (head) {
                 final PoolSubpage<T> s = head.next;
                 if (s != head) {
@@ -211,6 +321,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                     return;
                 }
             }
+
+            // 如果没有合适subpage，则采用方法allocateNormal分配内存
             synchronized (this) {
                 allocateNormal(buf, reqCapacity, normCapacity);
             }
@@ -219,22 +331,37 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             return;
         }
         if (normCapacity <= chunkSize) {
+            // 尝试从本地线程allocateNormal方法进行内存分配
+            // 如果分配一个page以上的内存，直接采用方法allocateNormal分配内存
             if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) {
                 // was able to allocate out of the cache so move on
                 return;
             }
+            // 使用全局allocateNormal进行分配内存
             synchronized (this) {
                 allocateNormal(buf, reqCapacity, normCapacity);
                 ++allocationsNormal;
             }
         } else {
+            // 如果申请内存大于chunkSize 直接创建非池化的Chunk来分配 并且该Chunk不会放在内存池中重用
             // Huge allocations are never served via the cache so just call allocateHuge
+            // 分配大于chunkSize的内存，直接创建非池化Chunk来分配内存，并且该Chunk不会被放到内存池中重用
             allocateHuge(buf, reqCapacity);
         }
     }
 
     // Method must be called inside synchronized(this) { ... } block
     private void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
+        // 1.尝试从现有的Chunk进行分配
+        /**
+         *
+         * 1.qinit的chunk利用率低，但不会被回收
+         * 2.q075和q100由于内存利用率太高，导致内存分配的成功率大大降低，因此放到最后
+         * 3.q050保存的是内存利用率50%~100%的Chunk，这应该是个折中的选择。
+         *   这样能保证Chunk的利用率都会保持在一个较高水平提高整个应用的内存利用率，并且内存利用率在50%~100%的Chunk内存分配的成功率有保障
+         * 4.当应用在实际运行过程中碰到访问高峰，这时需要分配的内存是平时的好几倍，需要创建好几倍的Chunk，
+         *   如果先从q0000开始，这些在高峰期创建的chunk被回收的概率会大大降低，延缓了内存的回收进度，造成内存使用的浪费
+         */
         if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
             q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||
             q075.allocate(buf, reqCapacity, normCapacity)) {
@@ -242,9 +369,14 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         }
 
         // Add a new chunk.
+        // 第一次进行内存分配时，chunkList没有chunk可以分配内存，需创建一个并添加到qInit列表中，并在新创建的Chunk中分配
+        // 如果分配如512字节的小内存，除了创建chunk，还有创建subpage，PoolSubpage在初始化之后，会添加到smallSubpagePools中，
+        // 其实并不是直接插入到数组，而是添加到head的next节点。下次再有分配512字节的需求时，直接从smallSubpagePools获取对应的subpage进行分配。
         PoolChunk<T> c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);
         boolean success = c.allocate(buf, reqCapacity, normCapacity);
         assert success;
+        // 将PoolChunk添加到PoolChunkList中
+        // 第一次分配的话，都放到qInit
         qInit.add(c);
     }
 
@@ -334,6 +466,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         return table[tableIdx];
     }
 
+    /**
+     * 归一化reqCapacity为2的整数次幂normalizedCapacity
+     */
     int normalizeCapacity(int reqCapacity) {
         checkPositiveOrZero(reqCapacity, "reqCapacity");
 
@@ -753,7 +888,11 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                     offsetCacheLine(memory));
         }
 
+        /**
+         * 创建直接内存，用直接内存地址创建DirectByteBuffer
+         */
         private static ByteBuffer allocateDirect(int capacity) {
+            // 如果不是调用cleaner来回收对象，将使用DirectByteBuffer回收对象
             return PlatformDependent.useDirectBufferNoCleaner() ?
                     PlatformDependent.allocateDirectNoCleaner(capacity) : ByteBuffer.allocateDirect(capacity);
         }

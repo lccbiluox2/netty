@@ -21,6 +21,8 @@ import io.netty.util.concurrent.Promise;
 
 /**
  * Some pending write which should be picked up later.
+ *
+ * 一些正在等待写入的内容应该在稍后提取.
  */
 public final class PendingWrite {
     private static final Recycler<PendingWrite> RECYCLER = new Recycler<PendingWrite>() {

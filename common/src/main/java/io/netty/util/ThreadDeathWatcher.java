@@ -41,6 +41,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * </p>
  *
  * @deprecated will be removed in the next major release
+ *
+ * 检查线程是否处于活动状态，并在线程死亡时运行任务.
  */
 @Deprecated
 public final class ThreadDeathWatcher {
@@ -75,6 +77,8 @@ public final class ThreadDeathWatcher {
      * @param task the {@link Runnable} to run when the {@code thread} dies
      *
      * @throws IllegalArgumentException if the specified {@code thread} is not alive
+     *
+     * 计划指定的任务在指定的线程死亡时运行。
      */
     public static void watch(Thread thread, Runnable task) {
         if (thread == null) {
@@ -104,6 +108,13 @@ public final class ThreadDeathWatcher {
         schedule(thread, task, false);
     }
 
+    /**
+     * 定时任务
+     *
+     * @param thread    线程
+     * @param task      任务
+     * @param isWatch   判断线程是否处于守望
+     */
     private static void schedule(Thread thread, Runnable task, boolean isWatch) {
         pendingEntries.add(new Entry(thread, task, isWatch));
 

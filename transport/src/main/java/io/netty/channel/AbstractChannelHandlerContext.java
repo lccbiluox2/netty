@@ -141,6 +141,10 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         return this;
     }
 
+    /**
+     * 事件会在NioServerSocketChannel的pipeline中传播（从head开始，逐步findContextInbound），
+     * 这会导致Inbound类型的Handler的channelRegistered方法被调用
+     */
     static void invokeChannelRegistered(final AbstractChannelHandlerContext next) {
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
@@ -767,6 +771,11 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
     }
 
+    /**
+     * 写数据的过程其实是分两步走的：
+     * 第一步是将要写的数据写到buffer中，
+     * 第二步是flush其实就是从buffer中读取数据然后发送给服务端
+     */
     private void write(Object msg, boolean flush, ChannelPromise promise) {
         ObjectUtil.checkNotNull(msg, "msg");
         try {

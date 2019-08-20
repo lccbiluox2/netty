@@ -83,8 +83,12 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
             return false;
         }
 
+        // 从head节点开始遍历
         for (PoolChunk<T> cur = head; cur != null; cur = cur.next) {
+            // 尝试使用已有PoolChunk进行分配
             if (cur.allocate(buf, reqCapacity, normCapacity)) {
+                // 分配后若该Chunk的使用率大于该ChunkList的最大使用率，则把该Chunk从此ChunkList中移除，放到下一个ChunkList中
+                // 判断PoolChunkList是否需要重新调整
                 if (cur.usage() >= maxUsage) {
                     remove(cur);
                     nextList.add(cur);
@@ -157,6 +161,7 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
         }
     }
 
+    // 去除双向链表中的该节点
     private void remove(PoolChunk<T> cur) {
         if (cur == head) {
             head = cur.next;

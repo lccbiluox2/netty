@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * {@link Bootstrap} sub-class which allows easy bootstrap of {@link ServerChannel}
  *
+ * ServerBootstrap : ServerBootstrap 是 Bootstrap 的一个子类，可以让我们快速的启动 ServerChannel
  */
 public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerChannel> {
 
@@ -48,13 +49,21 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     private final Map<ChannelOption<?>, Object> childOptions = new ConcurrentHashMap<ChannelOption<?>, Object>();
     private final Map<AttributeKey<?>, Object> childAttrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
     private final ServerBootstrapConfig config = new ServerBootstrapConfig(this);
+    /**
+     * volatile作用：
+     * 1. 确保编译的时候，不会出现指令重排序
+     * 2. 保证一个事件一定是发生在另一个事件之前
+     * 3. 确保一个线程中修改，对另外有的线程可见
+     */
     private volatile EventLoopGroup childGroup;
     private volatile ChannelHandler childHandler;
 
     public ServerBootstrap() { }
 
     private ServerBootstrap(ServerBootstrap bootstrap) {
+        // 设置boss线程组（在AbstractBootstrap中）
         super(bootstrap);
+        // 设置work线程组
         childGroup = bootstrap.childGroup;
         childHandler = bootstrap.childHandler;
         childOptions.putAll(bootstrap.childOptions);
@@ -73,6 +82,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
      * Set the {@link EventLoopGroup} for the parent (acceptor) and the child (client). These
      * {@link EventLoopGroup}'s are used to handle all the events and IO for {@link ServerChannel} and
      * {@link Channel}'s.
+     *
+     * parentGroup 负责接收客户端的请求，然后将请求交给客户端（childGroup）去处理，处理所有的事件，以及输入输出。
      */
     public ServerBootstrap group(EventLoopGroup parentGroup, EventLoopGroup childGroup) {
         super.group(parentGroup);
@@ -121,13 +132,20 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return this;
     }
 
+    /**
+     * 初始化NioServerSocketChannel
+     */
     @Override
     void init(Channel channel) {
+        // 设置之前配置的channel选项
         setChannelOptions(channel, options0().entrySet().toArray(newOptionArray(0)), logger);
+        // 设置之前配置的属性
         setAttributes(channel, attrs0().entrySet().toArray(newAttrArray(0)));
 
+        // 获取channel绑定的pipeline（pipeline实在channel创建的时候创建并绑定的）
         ChannelPipeline p = channel.pipeline();
 
+        // 设置NioSocketChannel用到的part
         final EventLoopGroup currentChildGroup = childGroup;
         final ChannelHandler currentChildHandler = childHandler;
         final Entry<ChannelOption<?>, Object>[] currentChildOptions =
@@ -138,14 +156,19 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             @Override
             public void initChannel(final Channel ch) {
                 final ChannelPipeline pipeline = ch.pipeline();
+                // 如果用户配置过Handler，如LoggingHandler，为NioServerSocketChannel绑定的pipeline添加Handler
                 ChannelHandler handler = config.handler();
                 if (handler != null) {
                     pipeline.addLast(handler);
                 }
 
+                // 为NioServerSocketChannel的pipeline添加一个初始化Handler,
+                // 当NioServerSocketChannel在boss EventLoop注册成功时，该handler的init方法将被调用
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
+                        // 为NioServerSocketChannel的pipeline添加ServerBootstrapAcceptor处理器
+                        // 该Handler主要用来将新创建的worker NioSocketChannel注册到EventLoopGroup中
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }
@@ -167,6 +190,10 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return this;
     }
 
+    /**
+     * 其中一个Handler
+     * Inbound 只处理读取，没有写回的事件
+     */
     private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
 
         private final EventLoopGroup childGroup;
@@ -199,14 +226,17 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            // 接收到SocketChannel
             final Channel child = (Channel) msg;
 
+            // 将最开始配置的childHandler添加到SocketChannel的pipeline中，这个Handler也是一个初始化Handler，原理和服务端的一致
             child.pipeline().addLast(childHandler);
 
             setChannelOptions(child, childOptions, logger);
             setAttributes(child, childAttrs);
 
             try {
+                // 将SocketChannel注册到WORK EventLoopGroup中，注册过程与服务端类似，此处不再讲解
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {

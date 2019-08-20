@@ -56,6 +56,8 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
                                     boolean addTaskWakesUp, int maxPendingTasks,
                                     RejectedExecutionHandler rejectedExecutionHandler) {
         super(parent, executor, addTaskWakesUp, maxPendingTasks, rejectedExecutionHandler);
+        //  NioEventLoopGroup在SingleThreadEventLoop 中, 实现了任务队列的功能, 通过它,
+        // 我们可以调用一个 NioEventLoop 实例的 execute 方法来向任务队列中添加一个 task, 并由 NioEventLoop 进行调度执行.
         tailTasks = newTaskQueue(maxPendingTasks);
     }
 
@@ -84,6 +86,7 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
     @Override
     public ChannelFuture register(final ChannelPromise promise) {
         ObjectUtil.checkNotNull(promise, "promise");
+        // unsafe执行的都是实际的操作
         promise.channel().unsafe().register(this, promise);
         return promise;
     }

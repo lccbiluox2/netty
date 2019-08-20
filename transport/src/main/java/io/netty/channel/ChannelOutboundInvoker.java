@@ -226,6 +226,9 @@ public interface ChannelOutboundInvoker {
 
     /**
      * Shortcut for call {@link #write(Object)} and {@link #flush()}.
+     *
+     * 虽然是object类型，实际上却需要根据程序传递相关的类型，不能直接传递string ，
+     * 传递string不会报错，但是运行的时候会报错。
      */
     ChannelFuture writeAndFlush(Object msg);
 

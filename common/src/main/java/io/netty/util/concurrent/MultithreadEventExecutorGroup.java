@@ -30,7 +30,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
 
-    private final EventExecutor[] children;
+    /**
+     * 线程数组
+     */
+    private final EventExecutor[] children ;
     private final Set<EventExecutor> readonlyChildren;
     private final AtomicInteger terminatedChildren = new AtomicInteger();
     private final Promise<?> terminationFuture = new DefaultPromise(GlobalEventExecutor.INSTANCE);
@@ -60,6 +63,12 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
 
     /**
      * Create a new instance.
+     *
+     *    创建NioEventLoopGroup
+     *    1. new ThreadPerTaskExecutor(newDefaultThreadFactory()); 创建事件处理器
+     *    2. for(){new child()}  构造NioEventLoop
+     *    3. chooseFactory.newChooser() 创建线程选择器
+     *
      *
      * @param nThreads          the number of threads that will be used by this instance.
      * @param executor          the Executor to use, or {@code null} if the default should be used.
@@ -128,6 +137,10 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         readonlyChildren = Collections.unmodifiableSet(childrenSet);
     }
 
+    /**
+     * 生成一个默认的线程工厂，传入了当前类的实例
+     * @return
+     */
     protected ThreadFactory newDefaultThreadFactory() {
         return new DefaultThreadFactory(getClass());
     }
@@ -154,9 +167,19 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
      * Create a new EventExecutor which will later then accessible via the {@link #next()}  method. This method will be
      * called for each thread that will serve this {@link MultithreadEventExecutorGroup}.
      *
+     * 创建一个 EventExecutor 这个可以被 next() 方法访问到，
      */
     protected abstract EventExecutor newChild(Executor executor, Object... args) throws Exception;
 
+    /**
+     * 遍历EventLoop数组，循环调用他们的shutdownGracefully方法
+     * @param quietPeriod the quiet period as described in the documentation
+     * @param timeout     the maximum amount of time to wait until the executor is {@linkplain #shutdown()}
+     *                    regardless if a task was submitted during the quiet period
+     * @param unit        the unit of {@code quietPeriod} and {@code timeout}
+     *
+     * @return
+     */
     @Override
     public Future<?> shutdownGracefully(long quietPeriod, long timeout, TimeUnit unit) {
         for (EventExecutor l: children) {

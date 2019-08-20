@@ -51,6 +51,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C extends Channel> implements Cloneable {
 
+    /**
+     * 如果是ServerBootStrap,以下都是针对NioServerSocketChannel的
+     * 如果是BootStrap，对应的就是SocketChannel
+     */
     volatile EventLoopGroup group;
     @SuppressWarnings("deprecation")
     private volatile ChannelFactory<? extends C> channelFactory;
@@ -75,6 +79,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     /**
      * The {@link EventLoopGroup} which is used to handle all the events for the to-be-created
      * {@link Channel}
+     *
+     * 处理客户端的所有的事件
      */
     public B group(EventLoopGroup group) {
         ObjectUtil.checkNotNull(group, "group");
@@ -82,10 +88,14 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             throw new IllegalStateException("group set already");
         }
         this.group = group;
+        // 强制转换成子类
         return self();
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * 返回子类对象
+     */
     private B self() {
         return (B) this;
     }
@@ -94,6 +104,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * The {@link Class} which is used to create {@link Channel} instances from.
      * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.
+     *
+     * 通过 channelClass 对象 创建一个 channel对象。
      */
     public B channel(Class<? extends C> channelClass) {
         return channelFactory(new ReflectiveChannelFactory<C>(
@@ -121,6 +133,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * is not working for you because of some more complex needs. If your {@link Channel} implementation
      * has a no-args constructor, its highly recommend to just use {@link #channel(Class)} to
      * simplify your code.
+     * 用于创建一个实例，当bind()方法调用的时候，才会创建，
      */
     @SuppressWarnings({ "unchecked", "deprecation" })
     public B channelFactory(io.netty.channel.ChannelFactory<? extends C> channelFactory) {
@@ -256,16 +269,51 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
+    /**
+     * 服务端启动过程：
+     * 1. 反射创建NioServerSocketChannel->channelFactory.newChannel()入口
+     *  a. newSocket() 调用SelectorProvider.openServerSocketChannel()创建JDK SocketChannel
+     *  b. AbstractNioChannel
+     *      创建id, unsafe, pipeline
+     *      设置监听事件为OP_ACCEPT
+     *      configureBlocking(false) 设置channel的阻塞模式为非阻塞
+     *  c. 新建NioServerSocketChannelConfig(tcp参数配置)
+     * 2. 初始化服务端channel->init(channel)入口
+     *  a. setChanelOptions(tcp相关配置), setChannelAttributes(用户自定义属性),
+     *  b. 保存属性ChildOptions, ChildAttrs
+     *  c. 配置用户自定义服务端处理器pipeline.addLast(config.handler())
+     *  d. 服务端pipeline，增加ServerBootstrapAcceptor Handler，用于给新连接初始化一些属性设置
+     * 3. 注册selector->AbstractChannel.register(channel)入口
+     *  a. this.eventLoop = eventLoop 把nio线程和当前channel绑定
+     *  b. register0() 实际注册、此时isActive为false
+     *      doRegister() 将jdk底层的channel注册到事件轮询器上，并把Netty的channel当做attachment注册上去，后续有轮询到java
+     *      channel事件可以直接用Netty的Channel去传播处理，此处监听事件为0，表示不关心任何事件。
+     *      javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
+     *      invokeHandlerAddedIfNeeded() 回调ServerHandler.handlerAdd()方法
+     *      fireChannelRegistered() 传播channelRegister事件，回调ServerHandler.handlerRegistered()方法
+     * 4. 端口绑定->AbstractUnsafe.bind()入口
+     *  a. doBinid()
+     *      javaChannel().bind(localAddress, config.getBacklog()) jdk底层绑定
+     *  b. pipeline.fireChannelActive() 传播channelActive事件，回调ServerHandler.handlerActive()方法
+     *      HeaderContext.readIfAutoRead()修改之前监听的事件为Accept
+     *          Tail.read()
+     *              AbstractNioChannel.doBeginRead()，修改监听的事件为Op_Accept
+     * @param localAddress
+     * @return
+     */
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 初始化并注册一个NioServerSocketChannel
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
             return regFuture;
         }
 
+        // 等待注册完成
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            // 执行channel的bind
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
@@ -292,10 +340,20 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    /**
+     * 初始化什么？注册什么？
+     *
+     *
+     * @return
+     */
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            // 服务端channelFactory生产的是NioServerSocketChannel
+            // 客户端channelFactory生产的是NioSocketChannel
             channel = channelFactory.newChannel();
+            // 初始化NioServerSocketChannel或NioSocketChannel
+            // 服务端和客户端是不同的
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -308,6 +366,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
+        // 调用MultithreadEventLoopGroup的register方法
+        // 向boss EventLoopGroup中注册此channel
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -351,8 +411,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * the {@link ChannelHandler} to use for serving the requests.
+     * <p>
+     * 创建默认的ChannelPipeline,用于调度和执行网络事件
      */
     public B handler(ChannelHandler handler) {
+        // 设置的是父类AbstractBootstrap里的成员，也就是该handler是被NioServerSocketChannel使用
         this.handler = ObjectUtil.checkNotNull(handler, "handler");
         return self();
     }

@@ -43,6 +43,11 @@ public final class MacAddressUtil {
      * networks is better than a local network interface.
      *
      * @return byte array containing a MAC. null if no MAC can be found.
+     *
+     * 获得本地网络接口上的最佳MAC地址。
+     * 一般来说，在公网上使用的主动网络接口要优于本地网络接口.
+     *
+     * @return 包含MAC的字节数组。 如果不能找到MAC，则返回null.
      */
     public static byte[] bestAvailableMac() {
         // Find the best MAC address available.

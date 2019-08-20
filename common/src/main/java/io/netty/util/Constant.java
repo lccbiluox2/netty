@@ -22,11 +22,14 @@ public interface Constant<T extends Constant<T>> extends Comparable<T> {
 
     /**
      * Returns the unique number assigned to this {@link Constant}.
+     *
+     * 返回分配给此常量连接的唯一编号
      */
     int id();
 
     /**
      * Returns the name of this {@link Constant}.
+     * 返回常量的 name
      */
     String name();
 }

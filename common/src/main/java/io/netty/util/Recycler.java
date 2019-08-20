@@ -34,6 +34,39 @@ import static java.lang.Math.min;
 /**
  * Light-weight object pool based on a thread-local stack.
  *
+ * Netty实现的基于线程局部堆栈的轻量级对象池，不是每次添加数据都要new 一个Entry对象，而是通过对象池技术复用，
+ * 只是取出来之后将数据以及promise赋值给Entry，这样做的目的必然降低开销。
+ *
+ * 如果创建一个对象的开销特别大，那么提前创建一些可以使用的并且缓存起来。（池化技术就是重复使用对象）
+ *
+ * 对象池适用场景：
+ * 1.创建对象的开销大
+ * 2.会创建大量的实例
+ * 3.限制一些资源的使用
+ *
+ * 会创建大量实例的场景，重复的使用对象可减少创建的对象数量，降低GC的压力。
+ * （如果这些对象的生命周期都很短暂，那么可以降低YoungGC的频率；如果生命周期很长，那么可以避免这些对象被FullGC--生命周期长，且大量创建，就要结合系统的TPS等考虑池的大小了）
+ *
+ * 对于限制资源的使用更多的是一种保护策略，比如数据库链接池。除去这些对象本身的开销外，他们对外部系统也会造成压力，比如大量创建链接对DB也是有压力的。那么池化除了优化资源以外，本身限制了资源数，对外部系统也起到了一层保护作用。
+ *
+ * 开源实现：Apache Commons Pool
+ * DBCP数据库连接池基于此实现
+ *
+ * Netty的NIO读写从内核缓冲区拷贝数据到用户缓冲区或者从用户缓冲区拷贝数据到内核缓冲区。这里会涉及到大量的创建和回收Buffer，Netty对Buffer进行了池化从而降低系统开销。
+ *
+ * NIO提供了两种Buffer最为缓冲区：DirectByteBuffer（机器内存，分配的大小和虚拟机限制无关）和HeapByteBuffer。Netty在两种缓冲区的基础上进行了池化进而提升性能。
+ *
+ * -> DirectByteBuffer
+ * DirectByteBuffer顾名思义是直接内存（Direct Memory）上的Byte缓存区，直接内存不是JVM Runtime数据区域的一部分，也不是Java虚拟机规范中定义的内存区域。简单的说这部分就是机器内存，分配的大小等都和虚拟机限制无关。
+ * JDK1.4中开始我们可以使用native方法在直接内存上来分配内存，并在JVM堆内存上维持一个引用来进行访问，当JVM堆内存上的引用被回收后，这块内存被操作系统回收。
+ * 分配和回收的代价相对较大，所以DirectByteBuffer适用于缓冲区可以重复使用的场景。
+ *
+ * -> HeapByteBuffer
+ * HeapByteBuffer是在JVM堆内存上分配的Byte缓冲区，可以简单的理解为byte[]数组的一种封装。基于HeapByteBuffer的写流程通常要先在直接内存上分配一个临时的缓冲区，将数据从Heap拷贝到直接内存，
+ * 然后再将直接内存的数据发送到IO设备的缓冲区，之后回收直接内存。读流程也类似。使用DirectByteBuffer避免了不必要的拷贝工作，所以在性能上会有提升。
+ *
+ * Recylcer是池化的核心
+ *
  * @param <T> the type of the pooled object
  */
 public abstract class Recycler<T> {
@@ -152,25 +185,34 @@ public abstract class Recycler<T> {
         }
     }
 
+    /**
+     * 获取一个实例
+     */
     @SuppressWarnings("unchecked")
     public final T get() {
         if (maxCapacityPerThread == 0) {
             return newObject((Handle<T>) NOOP_HANDLE);
         }
+        // 拿到当前线程对应的stack
         Stack<T> stack = threadLocal.get();
+        // 从stack中pop出一个元素
         DefaultHandle<T> handle = stack.pop();
         if (handle == null) {
+            // 创建一个新的实例
             handle = stack.newHandle();
             handle.value = newObject(handle);
         }
+        // 不为空则返回
         return (T) handle.value;
     }
 
     /**
      * @deprecated use {@link Handle#recycle(Object)}.
+     * 回收一个实例
      */
     @Deprecated
     public final boolean recycle(T o, Handle<T> handle) {
+        // 参数验证
         if (handle == NOOP_HANDLE) {
             return false;
         }
@@ -192,12 +234,23 @@ public abstract class Recycler<T> {
         return threadLocal.get().size;
     }
 
+    /**
+     * 创建一个实例
+     */
     protected abstract T newObject(Handle<T> handle);
 
+    /**
+     * 定义Handle接口
+     * @param <T>
+     */
     public interface Handle<T> {
         void recycle(T object);
     }
 
+    /**
+     * 默认Handle实现类
+     * @param <T>
+     */
     static final class DefaultHandle<T> implements Handle<T> {
         private int lastRecycledId;
         private int recycleId;
@@ -222,6 +275,7 @@ public abstract class Recycler<T> {
                 throw new IllegalStateException("recycled already");
             }
 
+            // 如果当前线程是当前stack对象的线程，那么将实例放入stack中
             stack.push(this);
         }
     }
@@ -459,16 +513,28 @@ public abstract class Recycler<T> {
         // The biggest issue is if we do not use a WeakReference the Thread may not be able to be collected at all if
         // the user will store a reference to the DefaultHandle somewhere and never clear this reference (or not clear
         // it in a timely manner).
+        /**
+         *
+         */
         final WeakReference<Thread> threadRef;
         final AtomicInteger availableSharedCapacity;
         final int maxDelayedQueues;
 
         private final int maxCapacity;
         private final int ratioMask;
+        /**
+         * 存储DefaultHandle的数组
+         */
         private DefaultHandle<?>[] elements;
         private int size;
         private int handleRecycleCount = -1; // Start with -1 so the first one will be recycled.
+        /**
+         * 当前游标和前一元素的"指针"
+         */
         private WeakOrderQueue cursor, prev;
+        /**
+         * 指向WeakOrderQueue元素组成的链表的头部"指针"
+         */
         private volatile WeakOrderQueue head;
 
         Stack(Recycler<T> parent, Thread thread, int maxCapacity, int maxSharedCapacityFactor,

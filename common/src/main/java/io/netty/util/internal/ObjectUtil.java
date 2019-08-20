@@ -27,6 +27,8 @@ public final class ObjectUtil {
     /**
      * Checks that the given argument is not null. If it is, throws {@link NullPointerException}.
      * Otherwise, returns the argument.
+     *
+     * 空指针异常统一抛出类
      */
     public static <T> T checkNotNull(T arg, String text) {
         if (arg == null) {

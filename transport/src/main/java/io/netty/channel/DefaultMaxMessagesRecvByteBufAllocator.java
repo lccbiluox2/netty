@@ -159,6 +159,9 @@ public abstract class DefaultMaxMessagesRecvByteBufAllocator implements MaxMessa
             attemptedBytesRead = bytes;
         }
 
+        /**
+         * 获得读取的字节数
+         */
         protected final int totalBytesRead() {
             return totalBytesRead < 0 ? Integer.MAX_VALUE : totalBytesRead;
         }

@@ -83,6 +83,11 @@ import static io.netty.handler.codec.http.HttpUtil.getContentLength;
  * @see FullHttpResponse
  * @see HttpResponseDecoder
  * @see HttpServerCodec
+ *
+ *
+ * 这个是对请求或者响应进行聚合，为什么呢？因为客户端可能发出一条很长的信息，假设是1万个字节，但是因为netty
+ * 会自动分割，假设是1千个字节，因此我们自己写的handler可能会被处理10次（channelRead0()方法被调用了多次），
+ * HttpObjectAggregator 就是为了这种情况，可以将所有的聚合成一个。
  */
 public class HttpObjectAggregator
         extends MessageAggregator<HttpObject, HttpMessage, HttpContent, FullHttpMessage> {
@@ -111,6 +116,8 @@ public class HttpObjectAggregator
      * @param maxContentLength the maximum length of the aggregated content in bytes.
      * If the length of the aggregated content exceeds this value,
      * {@link #handleOversizedMessage(ChannelHandlerContext, HttpMessage)} will be called.
+     *
+     * 可以指定一个长度，如果长度超过了这个字节，那么handleOversizedMessage() 方法就会被调用
      */
     public HttpObjectAggregator(int maxContentLength) {
         this(maxContentLength, false);

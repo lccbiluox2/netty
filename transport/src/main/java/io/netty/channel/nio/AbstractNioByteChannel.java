@@ -144,9 +144,12 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             boolean close = false;
             try {
                 do {
+                    // 获取ByteBuf还可以写入的字节数
                     byteBuf = allocHandle.allocate(allocator);
+                    // 真正的读取，localReadAmount本次读取的实际长度
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
                     if (allocHandle.lastBytesRead() <= 0) {
+                        // 什么都没有读到,跳出循环
                         // nothing was read. release the buffer.
                         byteBuf.release();
                         byteBuf = null;
@@ -160,10 +163,13 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
 
                     allocHandle.incMessagesRead(1);
                     readPending = false;
+                    // 发起调用channelRead，将bytebuf传过去
+                    // 从HandlerContext到解码器，以及pipeline中的一些处理handler
                     pipeline.fireChannelRead(byteBuf);
                     byteBuf = null;
                 } while (allocHandle.continueReading());
 
+                // 读取完之后进行的处理
                 allocHandle.readComplete();
                 pipeline.fireChannelReadComplete();
 

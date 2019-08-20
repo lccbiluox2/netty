@@ -21,6 +21,8 @@ import io.netty.util.internal.ReferenceCountUpdater;
 
 /**
  * Abstract base class for classes wants to implement {@link ReferenceCounted}.
+ *
+ * 抽象类的基类实现 ReferenceCounted。
  */
 public abstract class AbstractReferenceCounted implements ReferenceCounted {
     private static final long REFCNT_FIELD_OFFSET =

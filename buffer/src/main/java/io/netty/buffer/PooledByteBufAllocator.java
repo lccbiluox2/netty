@@ -67,6 +67,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         int defaultPageSize = SystemPropertyUtil.getInt("io.netty.allocator.pageSize", 8192);
         Throwable pageSizeFallbackCause = null;
         try {
+            // 校验pagesize，pagesize默认为8k，最小是4k，且必须是2的幂次方
             validateAndCalculatePageShifts(defaultPageSize);
         } catch (Throwable t) {
             pageSizeFallbackCause = t;
@@ -88,6 +89,8 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         // Assuming each arena has 3 chunks, the pool should not consume more than 50% of max memory.
         final Runtime runtime = Runtime.getRuntime();
 
+        // 我们默认使用（2 *可用处理器）来减少竞争，正如我们使用（2 *个可用处理器）来处理NIO和EPOLL中的EventLoops数量。
+        // 如果我们选择较小的数字，我们将遇到热点，就会需要在PoolArena上同步分配和取消分配。
         /*
          * We use 2 * available processors by default to reduce contention as we use 2 * available processors for the
          * number of EventLoops in NIO and EPOLL as well. If we choose a smaller number we will run into hot spots as
@@ -96,6 +99,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
          * See https://github.com/netty/netty/issues/3888.
          */
         final int defaultMinNumArena = NettyRuntime.availableProcessors() * 2;
+        // 初始化默认chunk的大小，为PageSize * (2的maxOrder幂)
         final int defaultChunkSize = DEFAULT_PAGE_SIZE << DEFAULT_MAX_ORDER;
         DEFAULT_NUM_HEAP_ARENA = Math.max(0,
                 SystemPropertyUtil.getInt(
@@ -103,6 +107,9 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                         (int) Math.min(
                                 defaultMinNumArena,
                                 runtime.maxMemory() / defaultChunkSize / 2 / 3)));
+        // 计算PoolAreana的个数 PoolArena默认为:cpu核心线程数与最大堆内存/2/(3*chunkSize)这两个数中的较小者
+        // 这里的除以2是为了确保系统分配的所有PoolArena占用的内存不超过系统可用内存的一半，这里的除以3是为了保证每个PoolArena至少可以由3个PoolChunk组成
+        // 用户可以通过io.netty.allocator.numHeapArenas／numDirectArenas来进行修改
         DEFAULT_NUM_DIRECT_ARENA = Math.max(0,
                 SystemPropertyUtil.getInt(
                         "io.netty.allocator.numDirectArenas",
@@ -167,6 +174,9 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
     public static final PooledByteBufAllocator DEFAULT =
             new PooledByteBufAllocator(PlatformDependent.directBufferPreferred());
 
+    /**
+     * 堆内存和直接内存(非堆内存)
+     */
     private final PoolArena<byte[]>[] heapArenas;
     private final PoolArena<ByteBuffer>[] directArenas;
     private final int tinyCacheSize;
@@ -245,8 +255,12 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                     + directMemoryCacheAlignment + " (expected: power of two)");
         }
 
+        // 检查pageSize是否大于4K且为2的幂次方如果不是则抛异常
+        // 如果是则返回Integer.SIZE - 1 - Integer.numberOfLeadingZeros(pageSize)的结果
+        // 通俗的说pageShifts就是pageSize二进制表示时尾部0的个数 pageSize是8192时它的二进制表示是10000000000000，那么这个pageShifts就是13
         int pageShifts = validateAndCalculatePageShifts(pageSize);
 
+        // 实例化heapArenas数组
         if (nHeapArena > 0) {
             heapArenas = newArenaArray(nHeapArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(heapArenas.length);
@@ -263,6 +277,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             heapArenaMetrics = Collections.emptyList();
         }
 
+        // 实例化directArenas数组
         if (nDirectArena > 0) {
             directArenas = newArenaArray(nDirectArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(directArenas.length);
@@ -454,6 +469,9 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             final PoolArena<ByteBuffer> directArena = leastUsedArena(directArenas);
 
             final Thread current = Thread.currentThread();
+
+            // useCacheForAllThreads是全局变量，是否全部线程使用缓存
+            // 或者线程是FastThreadLocalThread即Netty中的IO线程
             if (useCacheForAllThreads || current instanceof FastThreadLocalThread) {
                 final PoolThreadCache cache = new PoolThreadCache(
                         heapArena, directArena, tinyCacheSize, smallCacheSize, normalCacheSize,
@@ -469,19 +487,28 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                 return cache;
             }
             // No caching so just use 0 as sizes.
+            // 其他情况下不使用缓存
             return new PoolThreadCache(heapArena, directArena, 0, 0, 0, 0, 0);
         }
 
+        /**
+         * 当线程生命周期结束时，调用onRemoval进行一些清理操作
+         */
         @Override
         protected void onRemoval(PoolThreadCache threadCache) {
+            // 释放线程缓存中未释放的空间
             threadCache.free(false);
         }
 
+        /**
+         * 使得线程均等使用Arena，每次都寻找被最少线程使用的Arena，这样每个Arena都能均等分到线程数，从而平均Arena的负载
+         */
         private <T> PoolArena<T> leastUsedArena(PoolArena<T>[] arenas) {
             if (arenas == null || arenas.length == 0) {
                 return null;
             }
 
+            // 寻找使用缓存最少的Arena
             PoolArena<T> minArena = arenas[0];
             for (int i = 1; i < arenas.length; i++) {
                 PoolArena<T> arena = arenas[i];

@@ -70,6 +70,9 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
      */
     protected abstract void initChannel(C ch) throws Exception;
 
+    /**
+     * 该方法会在NioServerScoketChannel注册成功时被调用
+     */
     @Override
     @SuppressWarnings("unchecked")
     public final void channelRegistered(ChannelHandlerContext ctx) throws Exception {
@@ -123,6 +126,9 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * TCP链路注册成功后，调用此方法，用于设置用户ChannelHandler
+     */
     private boolean initChannel(ChannelHandlerContext ctx) throws Exception {
         if (initMap.add(ctx)) { // Guard against re-entrance.
             try {
@@ -134,6 +140,7 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
             } finally {
                 ChannelPipeline pipeline = ctx.pipeline();
                 if (pipeline.context(this) != null) {
+                    // 将Bootstrap注册到ChannelPipeline用于初始化引用ChannelHandler的ChannelInitializer删除掉
                     pipeline.remove(this);
                 }
             }

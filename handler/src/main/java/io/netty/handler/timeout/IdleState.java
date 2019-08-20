@@ -20,18 +20,23 @@ import io.netty.channel.Channel;
 
 /**
  * An {@link Enum} that represents the idle state of a {@link Channel}.
+ *
+ * 对应channel的空闲状态
  */
 public enum IdleState {
     /**
      * No data was received for a while.
+     * 读空闲
      */
     READER_IDLE,
     /**
      * No data was sent for a while.
+     * 写空闲
      */
     WRITER_IDLE,
     /**
      * No data was either received or sent for a while.
+     * 读写空闲
      */
     ALL_IDLE
 }

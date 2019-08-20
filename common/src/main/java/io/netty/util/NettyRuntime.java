@@ -23,11 +23,14 @@ import java.util.Locale;
 
 /**
  * A utility class for wrapping calls to {@link Runtime}.
+ *
+ * 用于将调用包装到Runtime的实用程序类
  */
 public final class NettyRuntime {
 
     /**
      * Holder class for available processors to enable testing.
+     * 可用处理器的Holder类来启用测试。
      */
     static class AvailableProcessorsHolder {
 
@@ -35,6 +38,8 @@ public final class NettyRuntime {
 
         /**
          * Set the number of available processors.
+         *
+         * 设置可用的核心数
          *
          * @param availableProcessors the number of available processors
          * @throws IllegalArgumentException if the specified number of available processors is non-positive

@@ -259,12 +259,20 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
      * {@code (newCapacity - currentCapacity)}.
      *
      * @throws IllegalArgumentException if the {@code newCapacity} is greater than {@link #maxCapacity()}
+     *
+     *  调整此缓冲区的容量。 如果newCapacity小于当前值
+     *  容量，此缓冲区的内容被截断。 如果newCapacity比当前的容量更大，
+     *  缓冲区附加了长度为（newCapacity - currentCapacity）的数据
      */
     public abstract ByteBuf capacity(int newCapacity);
 
     /**
      * Returns the maximum allowed capacity of this buffer. This value provides an upper
      * bound on {@link #capacity()}.
+     *
+     *  返回缓冲区中最大的容量，如果用户尝试用 capacity(int) 或 ensureWritable(int) 方法
+     *  增加缓冲区的容量，当容量大于最大的容量的时候会抛出 IllegalArgumentException 异常
+     *
      */
     public abstract int maxCapacity();
 
@@ -301,12 +309,17 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
      * Return the underlying buffer instance if this buffer is a wrapper of another buffer.
      *
      * @return {@code null} if this buffer is not a wrapper
+     *
+     * 如果此缓冲区是另一个缓冲区的包装，则返回基础缓冲区实例。
+     * return null 如果这个缓冲区不是一个包装
      */
     public abstract ByteBuf unwrap();
 
     /**
      * Returns {@code true} if and only if this buffer is backed by an
      * NIO direct buffer.
+     *
+     * 当且仅当此缓冲区由NIO直接缓冲区支持时才返回true。
      */
     public abstract boolean isDirect();
 
