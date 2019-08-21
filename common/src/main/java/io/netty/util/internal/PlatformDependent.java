@@ -1008,6 +1008,7 @@ public final class PlatformDependent {
     }
 
     private static Throwable unsafeUnavailabilityCause0() {
+        // 首先判断是不是安卓的系统
         if (isAndroid()) {
             logger.debug("sun.misc.Unsafe: unavailable (Android)");
             return new UnsupportedOperationException("sun.misc.Unsafe: unavailable (Android)");

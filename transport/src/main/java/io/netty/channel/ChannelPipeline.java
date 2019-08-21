@@ -35,17 +35,29 @@ import java.util.NoSuchElementException;
  * to give a user full control over how an event is handled and how the {@link ChannelHandler}s in a pipeline
  * interact with each other.
  *
+ * ChannelPipeline 是一个 ChannelHandler的集合，用来处理，输入的事件，以及输出的事件。ChannelPipeline 实现了一种高级的拦截过滤
+ * 模式，他可以赋予用户完全的控制，控制数据的处理，以及channelhandler相互之间的交互。
+ *
+ *
  * <h3>Creation of a pipeline</h3>
  *
  * Each channel has its own pipeline and it is created automatically when a new channel is created.
  *
+ * channel和pipeline是相辅相成的，当创建了channel，那么一个pipeline就会被相应的创建。
+ *
  * <h3>How an event flows in a pipeline</h3>
+ * 一个事件是如何的流经管道呢？
+ *
  *
  * The following diagram describes how I/O events are processed by {@link ChannelHandler}s in a {@link ChannelPipeline}
  * typically. An I/O event is handled by either a {@link ChannelInboundHandler} or a {@link ChannelOutboundHandler}
  * and be forwarded to its closest handler by calling the event propagation methods defined in
  * {@link ChannelHandlerContext}, such as {@link ChannelHandlerContext#fireChannelRead(Object)} and
  * {@link ChannelHandlerContext#write(Object)}.
+ *
+ * 下面这样图描述了，事件是如何被ChannelPipeline中的ChannelHandler处理的。一个I/O event 会被ChannelInboundHandler 或者
+ * ChannelOutboundHandler 去处理，处理完后，会交给最近的处理器，事件的传播方法是定义在ChannelHandlerContext，比如
+ * ChannelHandlerContext#fireChannelRead(Object)方法，或者  ChannelHandlerContext#write(Object) 方法。
  *
  * <pre>
  *                                                 I/O Request

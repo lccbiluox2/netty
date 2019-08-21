@@ -155,6 +155,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) {
+                // 获取 pipeline
                 final ChannelPipeline pipeline = ch.pipeline();
                 // 如果用户配置过Handler，如LoggingHandler，为NioServerSocketChannel绑定的pipeline添加Handler
                 ChannelHandler handler = config.handler();

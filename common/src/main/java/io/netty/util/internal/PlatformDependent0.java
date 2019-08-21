@@ -818,6 +818,7 @@ final class PlatformDependent0 {
         // OpenJDK is used, which means `Unsafe` will actually work as expected.
 
         // Android sets this property to Dalvik, regardless of whether it actually is.
+        // 判断是否包含这个属性
         String vmName = SystemPropertyUtil.get("java.vm.name");
         boolean isAndroid = "Dalvik".equals(vmName);
         if (isAndroid) {

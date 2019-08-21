@@ -301,7 +301,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * @param localAddress
      * @return
      */
-    private ChannelFuture doBind(final SocketAddress localAddress) {
+    private ChannelFuture  doBind(final SocketAddress localAddress) {
         // 初始化并注册一个NioServerSocketChannel
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();

@@ -31,6 +31,11 @@ import static java.lang.Math.min;
  * number of readable bytes if the read operation was not able to fill a certain
  * amount of the allocated buffer two times consecutively.  Otherwise, it keeps
  * returning the same prediction.
+ *
+ * RecvByteBufAllocator : RecvByteBufAllocator 会根据反馈自动增加或者减少 buffer的大小。
+ *
+ * 如果上一次读取的充满了buffer，那么下一次就会自动的优雅的增加字节缓冲区的大小。如果buffer连续两次没有充满buffer，那么就会保持
+ * 当前的buffer大小。
  */
 public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufAllocator {
 
@@ -44,15 +49,23 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
     private static final int INDEX_INCREMENT = 4;
     private static final int INDEX_DECREMENT = 1;
 
+    /**
+     * 按照从小到大的分配字节缓冲区的大小
+     * 16 32 48 .... 512-16 512 1024  2048 ... 一直到溢出为止
+     * 为什么把分配的放到数组中呢？
+     * 因为这是自动适应的
+     */
     private static final int[] SIZE_TABLE;
 
     // 初始化SIZE_TABLE
     static {
         List<Integer> sizeTable = new ArrayList<Integer>();
+        // 16 32 48 .... 512-16 这样信息放到里面
         for (int i = 16; i < 512; i += 16) {
             sizeTable.add(i);
         }
 
+        // 16 32 48 .... 512-16 512 1024  2048 ... 一直到溢出为止，溢出了 i就是负数了，小于0就退出了
         for (int i = 512; i > 0; i <<= 1) {
             sizeTable.add(i);
         }
@@ -69,6 +82,11 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
     @Deprecated
     public static final AdaptiveRecvByteBufAllocator DEFAULT = new AdaptiveRecvByteBufAllocator();
 
+    /**
+     * 计算要取出 size_table中的下表
+     * @param size
+     * @return
+     */
     private static int getSizeTableIndex(final int size) {
         for (int low = 0, high = SIZE_TABLE.length - 1;;) {
             if (high < low) {
@@ -93,6 +111,9 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
         }
     }
 
+    /**
+     *
+     */
     private final class HandleImpl extends MaxMessageHandle {
         private final int minIndex;
         private final int maxIndex;
@@ -158,6 +179,10 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
      * Creates a new predictor with the default parameters.  With the default
      * parameters, the expected buffer size starts from {@code 1024}, does not
      * go down below {@code 64}, and does not go up above {@code 65536}.
+     *
+     * 创建一个预测器 predictor（ AdaptiveRecvByteBufAllocator） 使用默认的参数，
+     * 期望的缓冲区大小初始值是从 1024。但是不会低于64，但是也不会高于65536
+     *
      */
     public AdaptiveRecvByteBufAllocator() {
         this(DEFAULT_MINIMUM, DEFAULT_INITIAL, DEFAULT_MAXIMUM);
