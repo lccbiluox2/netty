@@ -30,8 +30,13 @@ import java.net.SocketAddress;
 /**
  * A nexus to a network socket or a component which is capable of I/O
  * operations such as read, write, connect, and bind.
+ *
+ * channel 是一个 network socket 的连接，是一个IO操作的主要部分，例如 读写，连接，和bind.
+ *
  * <p>
  * A channel provides a user:
+ * 一个channel可以为用户提供以下的功能：
+ *
  * <ul>
  * <li>the current state of the channel (e.g. is it open? is it connected?),</li>
  * <li>the {@linkplain ChannelConfig configuration parameters} of the channel (e.g. receive buffer size),</li>
@@ -39,6 +44,11 @@ import java.net.SocketAddress;
  * <li>the {@link ChannelPipeline} which handles all I/O events and requests
  *     associated with the channel.</li>
  * </ul>
+ *
+ * channel 可以为用户提供当前的状态。比如是否打开，以及是否连接上。
+ * 提供了配置的参数，比如可接受的缓冲区大小。
+ * 支持IO操作，比如读写绑定。
+ * ChannelPipeline可以处理所有的IO事件，以及与这个Channel所关联的请求。
  *
  * <h3>All I/O operations are asynchronous.</h3>
  * <p>
@@ -48,18 +58,30 @@ import java.net.SocketAddress;
  * a {@link ChannelFuture} instance which will notify you when the requested I/O
  * operation has succeeded, failed, or canceled.
  *
+ * 所有的IO操作都是异步的。它意味着任何IO调用都会快速的返回，而且在调用之后不保证任何IO操作完成。
+ * 而是给你返回一个ChannelFuture，他将会告诉你IO请求是否 ucceeded, failed, or canceled.
+ *
+ *
  * <h3>Channels are hierarchical</h3>
  * <p>
  * A {@link Channel} can have a {@linkplain #parent() parent} depending on
  * how it was created.  For instance, a {@link SocketChannel}, that was accepted
  * by {@link ServerSocketChannel}, will return the {@link ServerSocketChannel}
  * as its parent on {@link #parent()}.
+ *
+ * channels是层级的。
+ * 根据Channel创建的不同，一个channel是可以有一个父类的。比如说ServerSocketChannel 接收一个SocketChannel的参数，
+ * 那么 SocketChannel 的父类就是 ServerSocketChannel
+ *
  * <p>
  * The semantics of the hierarchical structure depends on the transport
  * implementation where the {@link Channel} belongs to.  For example, you could
  * write a new {@link Channel} implementation that creates the sub-channels that
  * share one socket connection, as <a href="http://beepcore.org/">BEEP</a> and
  * <a href="http://en.wikipedia.org/wiki/Secure_Shell">SSH</a> do.
+ *
+ * 这种层级关系，取决于 传输层的实现，例如：
+ *
  *
  * <h3>Downcast to access transport-specific operations</h3>
  * <p>
@@ -68,11 +90,19 @@ import java.net.SocketAddress;
  * operations.  For example, with the old I/O datagram transport, multicast
  * join / leave operations are provided by {@link DatagramChannel}.
  *
+ * 向下转换完成一些下层操作
+ *
+ * 有一些转换，是在传输层指定的，向下转换成子类去调用相关方法，例如： 老式IO数据报的传输，multicast
+ * join / leave 在DatagramChannel提供了
+ *
  * <h3>Release resources</h3>
  * <p>
  * It is important to call {@link #close()} or {@link #close(ChannelPromise)} to release all
  * resources once you are done with the {@link Channel}. This ensures all resources are
  * released in a proper way, i.e. filehandles.
+ *
+ * 释放资源；
+ *  调用 close() 和 close(ChannelPromise) 可以释放 channel 所关联的资源，
  */
 public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparable<Channel> {
 
@@ -91,6 +121,9 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
      *
      * @return the parent channel.
      *         {@code null} if this channel does not have a parent channel.
+     *
+     *  根据Channel创建的不同，一个channel是可以有一个父类的。比如说ServerSocketChannel 接收一个SocketChannel的参数，
+     *  那么 SocketChannel 的父类就是 ServerSocketChannel
      */
     Channel parent();
 

@@ -28,13 +28,18 @@ import java.net.NetworkInterface;
  * of {@link ChannelConfig} and may depend on the nature of the transport it belongs
  * to.
  *
+ * {@link ChannelOption}允许以类型安全的方式配置{@link ChannelConfig}。支持哪个{@link ChannelOption}取决于
+ * {@link ChannelConfig}的实际实现，也可能取决于它所属传输的性质。
+ *
  * @param <T>   the type of the value which is valid for the {@link ChannelOption}
+ *              T 代表的是 某个选项，值代表的类型
  */
 public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
 
     private static final ConstantPool<ChannelOption<Object>> pool = new ConstantPool<ChannelOption<Object>>() {
         @Override
         protected ChannelOption<Object> newConstant(int id, String name) {
+            // 这里仅仅是属性的赋值
             return new ChannelOption<Object>(id, name);
         }
     };

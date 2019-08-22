@@ -90,13 +90,16 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private boolean registered;
 
     protected DefaultChannelPipeline(Channel channel) {
+        /** 这个操作可以让 channelPipline 访问到 channel ，也可以让channel 访问到  channelPipline */
         this.channel = ObjectUtil.checkNotNull(channel, "channel");
         succeededFuture = new SucceededChannelFuture(channel, null);
         voidPromise =  new VoidChannelPromise(channel, true);
 
+        // 将 tail  和 head 连接起来
         tail = new TailContext(this);
         head = new HeadContext(this);
 
+        // 本质上是一个链表类型
         head.next = tail;
         tail.prev = head;
     }

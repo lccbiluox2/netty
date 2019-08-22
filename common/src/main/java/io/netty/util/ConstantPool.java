@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A pool of {@link Constant}s.
  *
  * @param <T> the type of the constant
+ *
+ * 一个常量池。T 代表的是常量的类型。给常量一个名字和一个ID
  */
 public abstract class ConstantPool<T extends Constant<T>> {
 
@@ -107,9 +109,13 @@ public abstract class ConstantPool<T extends Constant<T>> {
     private T createOrThrow(String name) {
         T constant = constants.get(name);
         if (constant == null) {
+            // 创建一个常量
             final T tempConstant = newConstant(nextId(), name);
+            // 如果没有的话 才会放到常量池中,如果多线程下，putIfAbsent 方法可能返回null，或者返回了其他线程的结果。
             constant = constants.putIfAbsent(name, tempConstant);
+            // 这里为何进行双层的判断？里面这一层不加可以吗?
             if (constant == null) {
+                // 返回常量
                 return tempConstant;
             }
         }
@@ -131,6 +137,7 @@ public abstract class ConstantPool<T extends Constant<T>> {
 
     @Deprecated
     public final int nextId() {
+        // 院子问题，不会出现异常
         return nextId.getAndIncrement();
     }
 }

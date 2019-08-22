@@ -17,6 +17,9 @@ package io.netty.util;
 
 /**
  * A singleton which is safe to compare via the {@code ==} operator. Created and managed by {@link ConstantPool}.
+ *
+ * Constant 是单例的，可以通过 == 号进行比较，可以通过常量池 ConstantPool 进行创建于管理。
+ *
  */
 public interface Constant<T extends Constant<T>> extends Comparable<T> {
 
