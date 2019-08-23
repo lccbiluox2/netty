@@ -244,6 +244,11 @@ import java.nio.charset.UnsupportedCharsetException;
  *
  * Please refer to {@link ByteBufInputStream} and
  * {@link ByteBufOutputStream}.
+ *
+ * Netty发送和接收消息主要使用bytebuffer，bytebuffer使用对外内存（DirectMemory）直接进行Socket读写。
+ *
+ * 原因：如果使用传统的堆内存进行Socket读写，JVM会将堆内存buffer拷贝一份到直接内存中然后再写入socket，多了一次缓冲区的内存拷贝。
+ * DirectMemory中可以直接通过DMA发送到网卡接口
  */
 public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
 

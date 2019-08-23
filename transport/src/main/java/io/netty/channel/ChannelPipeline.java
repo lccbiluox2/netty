@@ -430,6 +430,8 @@ public interface ChannelPipeline
      *
      * @param handlers  the handlers to insert last
      *
+     * 将 ChannelHandler 插入到 ChannelPipeline 最后的位置
+     *
      */
     ChannelPipeline addLast(ChannelHandler... handlers);
 
