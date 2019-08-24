@@ -27,6 +27,7 @@ final class SelectedSelectionKeySet extends AbstractSet<SelectionKey> {
     int size;
 
     SelectedSelectionKeySet() {
+        // 默认大小
         keys = new SelectionKey[1024];
     }
 

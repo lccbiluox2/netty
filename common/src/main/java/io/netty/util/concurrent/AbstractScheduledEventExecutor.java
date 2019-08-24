@@ -129,14 +129,18 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
         assert scheduledTaskQueue != null;
         assert inEventLoop();
 
+        // 取出第一个任务
         ScheduledFutureTask<?> scheduledTask = scheduledTaskQueue.peek();
+        // 如果定时任务的截止时间 < 我们传入的截止时间
         if (scheduledTask != null && scheduledTask.deadlineNanos() <= nanoTime) {
             scheduledTaskQueue.poll();
             if (notifyMinimumDeadlineRemoved) {
+                // 移除
                 minimumDelayScheduledTaskRemoved(scheduledTask, scheduledTask.deadlineNanos());
             }
             return scheduledTask;
         }
+        // 第一个任务如果是null 就返回null，因为定时任务的实时间都还没到，所以没有必要执行
         return null;
     }
 

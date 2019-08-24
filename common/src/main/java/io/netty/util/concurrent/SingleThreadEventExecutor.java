@@ -229,6 +229,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     protected static Runnable pollTaskFrom(Queue<Runnable> taskQueue) {
         for (;;) {
+            // 拿出一个任务
             Runnable task = taskQueue.poll();
             if (task == WAKEUP_TASK) {
                 continue;
@@ -298,13 +299,16 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             return true;
         }
         long nanoTime = AbstractScheduledEventExecutor.nanoTime();
+        // 从定时任务中，拉取第一个任务
         Runnable scheduledTask = pollScheduledTask(scheduledTaskQueue, nanoTime, true);
         while (scheduledTask != null) {
+            // 直接塞到普通定时任务中
             if (!taskQueue.offer(scheduledTask)) {
                 // No space left in the task queue add it back to the scheduledTaskQueue so we pick it up again.
                 scheduledTaskQueue.add((ScheduledFutureTask<?>) scheduledTask);
                 return false;
             }
+            // 重新拉取任务
             scheduledTask = pollScheduledTask(scheduledTaskQueue, nanoTime, false);
         }
         return true;
@@ -456,6 +460,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             return false;
         }
         for (;;) {
+            // 执行任务
             safeExecute(task);
             task = pollTaskFrom(taskQueue);
             if (task == null) {
