@@ -275,6 +275,11 @@ import java.util.NoSuchElementException;
  * {@link ChannelPipeline}是线程安全的，因此可以随时添加或删除{@link ChannelHandler}。例如，您可以在即将交换敏感信息时插入加密
  * 处理程序，并在交换之后删除它。
  *
+ *
+ * 结论：
+ * 1. ChannelPipeline 是一个与 ChannelHandler 所关联的容器对象。
+ * 2. ChannelPipeline 中存放的是一个又一个的 {@link ChannelHandlerContext} 对象，ChannelHandlerContext 中存放的是我们写的或者系统
+ *    自带的chnnelHandler对象。
  */
 public interface ChannelPipeline
         extends ChannelInboundInvoker, ChannelOutboundInvoker, Iterable<Entry<String, ChannelHandler>> {

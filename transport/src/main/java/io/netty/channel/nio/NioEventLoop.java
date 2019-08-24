@@ -460,6 +460,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         // fall-through to SELECT since the busy-wait is not supported with NIO
 
                     case SelectStrategy.SELECT:
+                        // wakenUp 表示当前select 是否是唤醒状态，设置 false 标志 这次 select 操作是处于未唤醒状态
                         select(wakenUp.getAndSet(false));
 
                         // 'wakenUp.compareAndSet(false, true)' is always evaluated
@@ -509,7 +510,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 final int ioRatio = this.ioRatio;
                 if (ioRatio == 100) {
                     try {
-                        // 有事件发生执行这里
+                        // 有事件发生执行这里,处理和IO相关的逻辑
                         processSelectedKeys();
                     } finally {
                         // Ensure we always run tasks.
@@ -808,11 +809,14 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         Selector selector = this.selector;
         try {
             int selectCnt = 0;
+            // 计算当前时间
             long currentTimeNanos = System.nanoTime();
+            // select 操作的 截止时间
             long selectDeadLineNanos = currentTimeNanos + delayNanos(currentTimeNanos);
 
             for (;;) {
                 long timeoutMillis = (selectDeadLineNanos - currentTimeNanos + 500000L) / 1000000L;
+                // 判断当前是否为第一次操作，第一次操作是非阻塞的操作
                 if (timeoutMillis <= 0) {
                     if (selectCnt == 0) {
                         selector.selectNow();
@@ -825,6 +829,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 // Selector#wakeup. So we need to check task queue again before executing select operation.
                 // If we don't, the task might be pended until select operation was timed out.
                 // It might be pended until idle timeout if IdleStateHandler existed in pipeline.
+                // hasTasks 判断当前异步任务中是否有任务，wakenUp 设置true 使用非阻塞操作
                 if (hasTasks() && wakenUp.compareAndSet(false, true)) {
                     selector.selectNow();
                     selectCnt = 1;
@@ -835,6 +840,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 int selectedKeys = selector.select(timeoutMillis);
                 selectCnt ++;
 
+                // 轮询到事件
                 if (selectedKeys != 0 || oldWakenUp || wakenUp.get() || hasTasks() || hasScheduledTasks()) {
                     // - Selected something,
                     // - waken up by user, or
@@ -857,14 +863,22 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     break;
                 }
 
+                // 每次执行到这里的时候，都说明执行了一次非阻塞的操作
+                // TODO: 这里主要是解决Java空轮询的BUG
+
                 long time = System.nanoTime();
+                // 已经执行过一次非阻塞操作，当前时间-超时时间  > 当前时间
+                // 说明触发了一次空轮询的操作
                 if (time - TimeUnit.MILLISECONDS.toNanos(timeoutMillis) >= currentTimeNanos) {
                     // timeoutMillis elapsed without anything selected.
                     selectCnt = 1;
+
+                 //  空轮询次数大于 512 次的时候
                 } else if (SELECTOR_AUTO_REBUILD_THRESHOLD > 0 &&
                         selectCnt >= SELECTOR_AUTO_REBUILD_THRESHOLD) {
                     // The code exists in an extra method to ensure the method is not too big to inline as this
                     // branch is not very likely to get hit very frequently.
+                    // 将selectKey 放到新的selector上，这样可能不会发生空轮询的Bug
                     selector = selectRebuildSelector(selectCnt);
                     selectCnt = 1;
                     break;
@@ -888,6 +902,13 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 将selectKey 放到新的selector上，这样可能不会发生空轮询的Bug
+     *
+     * @param selectCnt
+     * @return
+     * @throws IOException
+     */
     private Selector selectRebuildSelector(int selectCnt) throws IOException {
         // The selector returned prematurely many times in a row.
         // Rebuild the selector to work around the problem.

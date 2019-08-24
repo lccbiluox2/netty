@@ -227,6 +227,16 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    /**
+     * 在链表中添加一个节点。
+     *
+     * A----->B
+     *
+     * 插入 C 那么变成
+     * A----->C----->B
+     *
+     * @param newCtx
+     */
     private void addLast0(AbstractChannelHandlerContext newCtx) {
         AbstractChannelHandlerContext prev = tail.prev;
         newCtx.prev = prev;
@@ -550,6 +560,8 @@ public class DefaultChannelPipeline implements ChannelPipeline {
             // In this case we replace the context in the pipeline
             // and add a task that will call ChannelHandler.handlerAdded(...) and
             // ChannelHandler.handlerRemoved(...) once the channel is registered.
+            // 如果registered=false ，那么说明channel还没有注册到eventloop中，一旦完成注册的时候，我们将替换pipeline中的
+            // context，而且会调用 ChannelHandler.handlerAdded(...) 合 ChannelHandler.handlerRemoved(...) 方法
             if (!registered) {
                 callHandlerCallbackLater(newCtx, true);
                 callHandlerCallbackLater(ctx, false);
@@ -1135,6 +1147,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private void callHandlerCallbackLater(AbstractChannelHandlerContext ctx, boolean added) {
         assert !registered;
 
+        // 创建一个任务
         PendingHandlerCallback task = added ? new PendingHandlerAddedTask(ctx) : new PendingHandlerRemovedTask(ctx);
         PendingHandlerCallback pending = pendingHandlerCallbackHead;
         if (pending == null) {

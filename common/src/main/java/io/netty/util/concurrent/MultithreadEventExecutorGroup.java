@@ -82,6 +82,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         }
 
         if (executor == null) {
+            // 创建一个线程执行器
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
 
@@ -117,6 +118,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             }
         }
 
+        // 主要是对新连接，绑定nioEventLoop
         chooser = chooserFactory.newChooser(children);
 
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {

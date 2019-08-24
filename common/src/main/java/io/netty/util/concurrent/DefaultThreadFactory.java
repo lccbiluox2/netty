@@ -86,6 +86,7 @@ public class DefaultThreadFactory implements ThreadFactory {
                 return poolName.toLowerCase(Locale.US);
             default:
                 if (Character.isUpperCase(poolName.charAt(0)) && Character.isLowerCase(poolName.charAt(1))) {
+                    // 将第一个字符转成大写
                     return Character.toLowerCase(poolName.charAt(0)) + poolName.substring(1);
                 } else {
                     return poolName;
