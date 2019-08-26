@@ -434,6 +434,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     /**
      * Returns the {@link AbstractBootstrapConfig} object that can be used to obtain the current config
      * of the bootstrap.
+     *
+     * 返回一个AbstractBootstrapConfig
      */
     public abstract AbstractBootstrapConfig<B, C> config();
 

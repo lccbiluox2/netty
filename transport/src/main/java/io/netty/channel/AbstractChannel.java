@@ -68,6 +68,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      *        the parent of this channel. {@code null} if there's no parent.
      */
     protected AbstractChannel(Channel parent) {
+        // 服务器的Channel
         this.parent = parent;
         id = newId();
         unsafe = newUnsafe();
@@ -466,10 +467,19 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             AbstractChannel.this.eventLoop = eventLoop;
 
+            // TODO:下面为啥进行判断？
+            // TODO: 1. 一个EventLoopGroup当中包含一个或者多个EventLoop。
+            // TODO: 2. 一个EventLoop在他的整个生命周期当中只会与唯一一个Thread（这个线程就是传统的IO线程）进行绑定。
+            // TODO: 3. 所有由EventLoop所处理的各种IO事件都将在他所关联的那个Thread上进行处理。
+            // TODO: 4. 一个Channel在它的整个生命周期中只会注册在一个EventLoop上。（因此一个channel中诸多的Handler中的方法只会由一个线程去调用，不会产生任何多线程问题 ）
+            // TODO: 5. 一个EventLoop在运行过程当中，会被分配一个或者多个Channel.
+            // TODO: 一个Channel只有一个EventLoop，一个EventLoop会被多个Channel使用。
+            //
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
                 try {
+                    // TODO: 巧妙地设计，以一个任务去执行
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -495,6 +505,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                // TODO:核心注册逻辑
                 doRegister();
                 neverRegistered = false;
                 registered = true;
@@ -515,6 +526,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         // again so that we process inbound data.
                         //
                         // See https://github.com/netty/netty/issues/4805
+                        // TODO: 开始可以读取数据
                         beginRead();
                     }
                 }

@@ -39,12 +39,16 @@ public interface EventExecutor extends EventExecutorGroup {
 
     /**
      * Calls {@link #inEventLoop(Thread)} with {@link Thread#currentThread()} as argument
+     * 调用inEventLoop方法传入Thread#currentThread()作为参数
      */
     boolean inEventLoop();
 
     /**
      * Return {@code true} if the given {@link Thread} is executed in the event loop,
      * {@code false} otherwise.
+     * 如果给定的线程是在event loop执行的线程，那么就返回true，否则返回false.
+     * 那么什么是在event loop执行的线程呢？
+     *
      */
     boolean inEventLoop(Thread thread);
 

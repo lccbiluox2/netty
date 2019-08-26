@@ -33,6 +33,7 @@ public interface EventExecutorChooserFactory {
 
     /**
      * Chooses the next {@link EventExecutor} to use.
+     * 返回一个新的待使用的EventExecutor对象
      */
     @UnstableApi
     interface EventExecutorChooser {

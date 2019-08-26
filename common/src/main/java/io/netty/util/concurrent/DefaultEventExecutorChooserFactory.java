@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Default implementation which uses simple round-robin to choose next {@link EventExecutor}.
+ * round-robin 是轮询的使用
  */
 @UnstableApi
 public final class DefaultEventExecutorChooserFactory implements EventExecutorChooserFactory {

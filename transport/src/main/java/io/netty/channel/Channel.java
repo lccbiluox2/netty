@@ -103,6 +103,14 @@ import java.net.SocketAddress;
  *
  * 释放资源；
  *  调用 close() 和 close(ChannelPromise) 可以释放 channel 所关联的资源，
+ *
+ * TODO: 所有属于一个Channel的任务，提交的顺序和执行的顺序一致
+ * TODO: 在Netty中，channel的实现一定是线程安全的，基于此，我们可以存储一个channle的引用，并且在需要向远处端点发送数据时，通过这个
+ *       引用来调用channel相应的方法，即使当前有很多线程都在使用它，也不会发生多线程问题，而且消息一定会按照顺序发送出去。
+ *
+ * TODO: 重要的结论，在我们的业务开发中，不要将长时间的耗时任务放入到EventLoop的执行队列中，因为他将会一直阻塞到该线程所对应的所有的
+ *       channle上的其他执行任务，如果我们需要进行阻塞调用或者是耗时操作（实际开发中很常见，那么我们需要使用一个专门的EventExecutor
+ *       （业务线程池））。
  */
 public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparable<Channel> {
 

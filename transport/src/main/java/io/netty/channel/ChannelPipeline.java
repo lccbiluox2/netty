@@ -276,10 +276,10 @@ import java.util.NoSuchElementException;
  * 处理程序，并在交换之后删除它。
  *
  *
- * 结论：
- * 1. ChannelPipeline 是一个与 ChannelHandler 所关联的容器对象。
- * 2. ChannelPipeline 中存放的是一个又一个的 {@link ChannelHandlerContext} 对象，ChannelHandlerContext 中存放的是我们写的或者系统
- *    自带的chnnelHandler对象。
+ * TODO: 结论：
+ *          1. ChannelPipeline 是一个与 ChannelHandler 所关联的容器对象。
+ *          2. ChannelPipeline 中存放的是一个又一个的 {@link ChannelHandlerContext} 对象，ChannelHandlerContext 中存放的是我们写的或者系统
+ *              自带的chnnelHandler对象。
  */
 public interface ChannelPipeline
         extends ChannelInboundInvoker, ChannelOutboundInvoker, Iterable<Entry<String, ChannelHandler>> {

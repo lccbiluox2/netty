@@ -93,6 +93,9 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private final Queue<Runnable> taskQueue;
 
+    /**
+     * 所有提交的任务都是放在这个成员变量中的
+     */
     private volatile Thread thread;
     @SuppressWarnings("unused")
     private volatile ThreadProperties threadProperties;
@@ -623,6 +626,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     @Override
     public boolean inEventLoop(Thread thread) {
+        // 仅仅判断当前执行的线程
         return thread == this.thread;
     }
 
