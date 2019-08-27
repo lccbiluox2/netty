@@ -28,6 +28,16 @@ package io.netty.util;
  * {@link ReferenceCounted}, the contained objects will also be released via {@link #release()} when the container's
  * reference count becomes 0.
  * </p>
+ *
+ * 需要显式释放位置的引用计数对象。
+ *
+ * 当实例化一个新的{@link ReferenceCounted}时，它从{@code 1}的引用计数开始。{@link #retain()}增加引用计数，而{@link #release()}
+ * 减少引用计数。如果引用计数减少到{@code 0}，则显式地释放对象，并且访问释放对象通常会导致访问冲突。
+ *
+ * 如果实现{@link ReferenceCounted}的对象是实现{@link ReferenceCounted}的其他对象的容器，那么当容器的引用计数变为0时，所包含的对象
+ * 也将通过{@link #release()}释放。
+ *
+ *
  */
 public interface ReferenceCounted {
     /**

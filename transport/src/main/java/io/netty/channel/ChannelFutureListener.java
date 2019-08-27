@@ -31,6 +31,14 @@ import io.netty.util.concurrent.GenericFutureListener;
  * in the handler method can cause an unexpected pause during I/O.  If you need
  * to perform a blocking operation on I/O completion, try to execute the
  * operation in a different thread using a thread pool.
+ *
+ * 监听ChannelFuture的结果。一旦调用{@link ChannelFuture#addListener(GenericFutureListener)}添加此侦听器，
+ * 异步{@link Channel} I/O操作的结果将被通知。
+ *
+ * 将Control快速返回给调用者
+ *
+ * {@link #operationComplete(Future)}由I/O线程直接调用。因此，在处理程序方法中执行耗时的任务或阻塞操作可能导致I/O期间出现
+ * 意外暂停。如果需要在I/O完成时执行阻塞操作，请尝试使用线程池在不同的线程中执行该操作。
  */
 public interface ChannelFutureListener extends GenericFutureListener<ChannelFuture> {
 
@@ -61,6 +69,8 @@ public interface ChannelFutureListener extends GenericFutureListener<ChannelFutu
     /**
      * A {@link ChannelFutureListener} that forwards the {@link Throwable} of the {@link ChannelFuture} into the
      * {@link ChannelPipeline}. This mimics the old behavior of Netty 3.
+     *
+     * 当失败的时候，调用这个方法。
      */
     ChannelFutureListener FIRE_EXCEPTION_ON_FAILURE = new ChannelFutureListener() {
         @Override

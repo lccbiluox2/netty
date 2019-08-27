@@ -23,9 +23,26 @@ import java.util.concurrent.TimeUnit;
  * The result of an asynchronous operation.
  * 异步操作的结果.
  *
- * 问题：netty为什么会重写了Java的Future方法，并且增加新的方法呢？
+ * TODO: 问题：netty为什么会重写了Java的Future方法，并且增加新的方法呢？
  *  因为future的get方法是一个尴尬的方法，因为这个方法调用会一直阻塞到得到结果，一旦调用就会阻塞，而且我们不知道什么时候去调用这个方法。
  *  netty的listener方法就在一部分程度上解决了这个问题。
+ *
+ * TODO： JDK的Future有什么作用？与Netty有什么区别？
+ *      JDK提供的Future只能通过手工的方法检查执行结果，而这个操作是阻塞的，Netty则对ChannleFuture进行了增强，通过channelFutureListener
+ *      以回调的方法来获取执行结果，去除手工检查阻塞的操作，值得注意的是：channelFutureListener的OperationComplete方法是由IO线程执行的，
+ *      因此要注意的是不要在这里执行耗时的操作，或者需要通过另外的线程池来执行。
+ *
+ *  这里画个图来说明：
+ *                                                  ---addListner->  listnenerA
+ *  channelFuture继承了future对象。  <-   Future --->
+ *                                                  ---addListner->  listnenerB
+ *  如果任务执行完了，那么Future会调用注册在Future上的每一个listener，然后调用 hannelFutureListener的operationComplete方法，并且
+ *  把future自己这个对象传递给每个future,listener拿到这个future,就可以拿到关联的channel，就可以对channnle进行任何操作。
+ *
+ *  TODO：Future如何知道channel中的任务是完成了呢？然后调用他们的方法呢？
+ *      那么就要说说 promise这个接口了。这个接口是可写的而且只能写一次，不管成功还是失败。
+ *      promise ： 中文是程诺的意思。
+ *
  */
 @SuppressWarnings("ClassNameSameAsAncestorName")
 public interface Future<V> extends java.util.concurrent.Future<V> {
@@ -33,7 +50,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
     /**
      * Returns {@code true} if and only if the I/O operation was completed
      * successfully.
-     * 如果 IO 操作成功完成，返回 true,isSuccess是isDone方法的一个特例。
+     * TODO: 如果 IO 操作成功完成，返回 true,isSuccess是isDone方法的一个特例。
      */
     boolean isSuccess();
 

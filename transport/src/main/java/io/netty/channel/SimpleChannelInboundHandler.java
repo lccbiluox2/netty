@@ -20,6 +20,7 @@ import io.netty.util.internal.TypeParameterMatcher;
 
 /**
  * {@link ChannelInboundHandlerAdapter} which allows to explicit only handle a specific type of messages.
+ * ChannelInboundHandlerAdapter 可以让我们显示的处理特定的消息，
  *
  * For example here is an implementation which only handle {@link String} messages.
  *
@@ -38,6 +39,10 @@ import io.netty.util.internal.TypeParameterMatcher;
  * Be aware that depending of the constructor parameters it will release all handled messages by passing them to
  * {@link ReferenceCountUtil#release(Object)}. In this case you may need to use
  * {@link ReferenceCountUtil#retain(Object)} if you pass the object to the next handler in the {@link ChannelPipeline}.
+ *
+ * 注意，根据构造函数参数的不同，它将释放所有处理过的消息，方法是将它们传递给{@link ReferenceCountUtil#release(Object)}。在这种情况下，
+ * 如果将对象传递给{@link ChannelPipeline}中的下一个处理程序，可能需要使用{@link ReferenceCountUtil#retain(Object)}。
+ * 当消息的引用次数为0，那么这个消息就会被释放。
  *
  * <h3>Forward compatibility notice</h3>
  * <p>
@@ -95,11 +100,18 @@ public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandl
         return matcher.match(msg);
     }
 
+    /**
+     * 这里使用了 模板设计模式
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         boolean release = true;
         try {
             if (acceptInboundMessage(msg)) {
+                /// 消息轻质转换
                 @SuppressWarnings("unchecked")
                 I imsg = (I) msg;
                 channelRead0(ctx, imsg);
@@ -109,6 +121,7 @@ public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandl
             }
         } finally {
             if (autoRelease && release) {
+                // 对消息的引用计数减去1
                 ReferenceCountUtil.release(msg);
             }
         }

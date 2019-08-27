@@ -18,7 +18,7 @@ package io.netty.util.concurrent;
 /**
  * Special {@link Future} which is writable.
  *
- * 可写的特殊 Future.
+ * TODO：可写的特殊 Future.
  */
 public interface Promise<V> extends Future<V> {
 
@@ -27,6 +27,10 @@ public interface Promise<V> extends Future<V> {
      * listeners.
      *
      * If it is success or failed already it will throw an {@link IllegalStateException}.
+     *
+     * 标志future成功了，并且通知所有的监听器。
+     * 如果已经成功，或者已经失败了，那么将会抛出异常 IllegalStateException
+     * 只能被调用一次，再次调用就会报错。
      */
     Promise<V> setSuccess(V result);
 
