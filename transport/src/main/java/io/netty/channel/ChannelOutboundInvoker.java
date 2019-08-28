@@ -229,6 +229,15 @@ public interface ChannelOutboundInvoker {
      *
      * 虽然是object类型，实际上却需要根据程序传递相关的类型，不能直接传递string ，
      * 传递string不会报错，但是运行的时候会报错。
+     *
+     * TODO： 在netty中有两种发送消息的方式，可以直接写到Channel中，也可以写到与ChannelHandler所关联的那个ChannelHandlerContext
+     *        中，对于前一种方式来说，消息会从ChannelPipline的末尾开始流动，对于后面一种来说，消息将从Channelpipline中的下一个
+     *        ChannelHandler开始流动。
+     *
+     * TODO: 结论
+     *       1. ChannelHandlerContext与ChannelHandler之间的关联关系是永远不变的，因此对其进行缓冲是没有任何问题的。
+     *       2. 对于与Channel同名方法来说，ChannelHandlerContext的方法将会产生更短的事件流，所以我们应该在可能的情况下利用这个特性
+     *          来提高应用性能。
      */
     ChannelFuture writeAndFlush(Object msg);
 

@@ -249,6 +249,10 @@ import java.nio.charset.UnsupportedCharsetException;
  *
  * 原因：如果使用传统的堆内存进行Socket读写，JVM会将堆内存buffer拷贝一份到直接内存中然后再写入socket，多了一次缓冲区的内存拷贝。
  * DirectMemory中可以直接通过DMA发送到网卡接口
+ *
+ * TODO: 重要的讲解 https://www.zhihu.com/question/57374068
+ * 作者：RednaxelaFX  曾在阿里工作  jvm了解很深 很热情的一个人
+ *
  */
 public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
 
