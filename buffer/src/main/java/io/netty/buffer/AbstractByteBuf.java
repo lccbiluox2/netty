@@ -42,6 +42,7 @@ import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * A skeletal implementation of a buffer.
+ * 缓冲区的基本实现。
  */
 public abstract class AbstractByteBuf extends ByteBuf {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractByteBuf.class);
@@ -214,16 +215,19 @@ public abstract class AbstractByteBuf extends ByteBuf {
     @Override
     public ByteBuf discardReadBytes() {
         ensureAccessible();
+        // 没有可丢弃的字节
         if (readerIndex == 0) {
             return this;
         }
 
+        // 只有这种情况才涉及数据的移动
         if (readerIndex != writerIndex) {
             setBytes(0, this, readerIndex, writerIndex - readerIndex);
             writerIndex -= readerIndex;
             adjustMarkers(readerIndex);
             readerIndex = 0;
         } else {
+            // 已经读到了最后的位置
             adjustMarkers(readerIndex);
             writerIndex = readerIndex = 0;
         }

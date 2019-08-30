@@ -47,11 +47,13 @@ public interface ReferenceCounted {
 
     /**
      * Increases the reference count by {@code 1}.
+     * 将引用增加1
      */
     ReferenceCounted retain();
 
     /**
      * Increases the reference count by the specified {@code increment}.
+     * 将引用增加到你传入的次数
      */
     ReferenceCounted retain(int increment);
 
@@ -59,6 +61,8 @@ public interface ReferenceCounted {
      * Records the current access location of this object for debugging purposes.
      * If this object is determined to be leaked, the information recorded by this operation will be provided to you
      * via {@link ResourceLeakDetector}.  This method is a shortcut to {@link #touch(Object) touch(null)}.
+     *
+     * 用于调试的目的
      */
     ReferenceCounted touch();
 
@@ -66,6 +70,7 @@ public interface ReferenceCounted {
      * Records the current access location of this object with an additional arbitrary information for debugging
      * purposes.  If this object is determined to be leaked, the information recorded by this operation will be
      * provided to you via {@link ResourceLeakDetector}.
+     * 用于调试的目的
      */
     ReferenceCounted touch(Object hint);
 

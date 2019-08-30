@@ -51,6 +51,10 @@ public abstract class ReferenceCountUpdater<T extends ReferenceCounted> {
         return -1;
     }
 
+    /**
+     * CAS 操作，可以在底层操作。
+     * @return AtomicIntegerFieldUpdater
+     */
     protected abstract AtomicIntegerFieldUpdater<T> updater();
 
     protected abstract long unsafeOffset();
