@@ -33,8 +33,13 @@ import java.util.List;
  * {@link ChannelInboundHandlerAdapter} which decodes bytes in a stream-like fashion from one {@link ByteBuf} to an
  * other Message type.
  *
+ * {@link ChannelInboundHandlerAdapter}以类似流的方式将字节从一个{@link ByteBuf}解码为另一个消息类型。
+ *
  * For example here is an implementation which reads all readable bytes from
  * the input {@link ByteBuf} and create a new {@link ByteBuf}.
+ *
+ * 例如，这里有一个实现，它从输入{@link ByteBuf}读取所有可读字节，并创建一个新的{@link ByteBuf}。
+ *
  *
  * <pre>
  *     public class SquareDecoder extends {@link ByteToMessageDecoder} {
@@ -46,29 +51,58 @@ import java.util.List;
  *     }
  * </pre>
  *
- * <h3>Frame detection</h3>
+ * <h3>Frame detection</h3>  帧检测
  * <p>
  * Generally frame detection should be handled earlier in the pipeline by adding a
  * {@link DelimiterBasedFrameDecoder}, {@link FixedLengthFrameDecoder}, {@link LengthFieldBasedFrameDecoder},
  * or {@link LineBasedFrameDecoder}.
+ *
+ * 通常，通过添加{@link DelimiterBasedFrameDecoder}、{@link FixedLengthFrameDecoder}、{@link LengthFieldBasedFrameDecoder}
+ * 或{@link LineBasedFrameDecoder}，可以在管道的早期处理帧检测。
+ *
+ * TODO：为什么要进行帧检测呢？
+ *      因为这个涉及TCP的粘包和拆包，
+ *
  * <p>
  * If a custom frame decoder is required, then one needs to be careful when implementing
  * one with {@link ByteToMessageDecoder}. Ensure there are enough bytes in the buffer for a
  * complete frame by checking {@link ByteBuf#readableBytes()}. If there are not enough bytes
  * for a complete frame, return without modifying the reader index to allow more bytes to arrive.
+ *
+ * 如果需要自定义帧解码器，那么在使用{@link ByteToMessageDecoder}实现自定义帧解码器时需要小心。通过检查{@link ByteBuf#readableBytes()}，
+ * 确保缓冲区中有足够的字节来保存完整的帧。如果一个完整的帧没有足够的字节，那么直接返回，不要修改reader索引，以允许读取更多的字节。
+ *
+ * TODO:为什么这么说呢？
+ *      因为假设你要传输的是一个int，占用4个字节，但是你的buffer只有3个字节，那么是不够的，因此readInt肯定是错误的。
+ *
  * <p>
  * To check for complete frames without modifying the reader index, use methods like {@link ByteBuf#getInt(int)}.
  * One <strong>MUST</strong> use the reader index when using methods like {@link ByteBuf#getInt(int)}.
  * For example calling <tt>in.getInt(0)</tt> is assuming the frame starts at the beginning of the buffer, which
  * is not always the case. Use <tt>in.getInt(in.readerIndex())</tt> instead.
+ *
+ * 要在不修改reader索引的情况下检查完整的帧，可以使用{@link ByteBuf#getInt(int)}（getInde是一个绝对方法）之类的方法。当使用像{@link ByteBuf#getInt(int)}
+ * 这样的方法时，一个必须使用reader索引。例如，在 in.getInt(0) 中调用是假设帧从缓冲区的开始处开始，但并不总是这样。使用
+ * in.getInt(in.readerIndex())。
+ *
  * <h3>Pitfalls</h3>
+ * TODO: 陷阱
  * <p>
  * Be aware that sub-classes of {@link ByteToMessageDecoder} <strong>MUST NOT</strong>
  * annotated with {@link @Sharable}.
+ *
+ * 注意，{@link ByteToMessageDecoder} 的子类不能带{@link @Sharable}注释。
+ * TODO: 什么是Sharable呢？
+ *       意味着多个管道不能共享一个实例。多个管道意味着是多个线程共享。
+ *
  * <p>
  * Some methods such as {@link ByteBuf#readBytes(int)} will cause a memory leak if the returned buffer
  * is not released or added to the <tt>out</tt> {@link List}. Use derived buffers like {@link ByteBuf#readSlice(int)}
  * to avoid leaking memory.
+ *
+ * 一些方法，如{@link ByteBuf#readBytes(int)}，如果返回的缓冲区没有被释放或添加到out {@link List}，将导致内存泄漏。使用派生缓冲区，
+ * 如{@link ByteBuf#readSlice(int)}，以避免内存泄漏。
+ *
  * 继承ChannelInboundHandlerAdapter，处理入站事件
  */
 public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter {
@@ -514,10 +548,16 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
      * {@link ByteBuf} has nothing to read when return from this method or till nothing was read from the input
      * {@link ByteBuf}.
      *
+     * 从一个{@link ByteBuf}解码到另一个{@link ByteBuf}。该方法将被调用，直到从该方法返回的输入{@link ByteBuf}没有任何可读内容，
+     * 或者直到从输入{@link ByteBuf}没有任何可读内容。
+     *
      * @param ctx           the {@link ChannelHandlerContext} which this {@link ByteToMessageDecoder} belongs to
+     *                      {@link ByteToMessageDecoder}所属的{@link ChannelHandlerContext}
      * @param in            the {@link ByteBuf} from which to read data
+     *                      用来读取数据的{@link ByteBuf}
      * @param out           the {@link List} to which decoded messages should be added
-     * @throws Exception    is thrown if an error occurs
+     *                      应该向其中添加解码消息的{@link列表}，为什么是object类型呢？因为nettya不知道你的数据类型。
+     * @throws Exception    is thrown if an error occurs  如果发生错误，是否引发
      */
     protected abstract void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception;
 
@@ -555,6 +595,12 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
      *
      * By default this will just call {@link #decode(ChannelHandlerContext, ByteBuf, List)} but sub-classes may
      * override this for some special cleanup operation.
+     *
+     * 当{@link ChannelHandlerContext}处于活动状态时，最后一次调用。这意味着{@link #channelInactive(ChannelHandlerContext)}
+     * 被触发。
+     *
+     * 默认情况下，这将只调用 {@link #decode(ChannelHandlerContext, ByteBuf, List)} ，但是子类可能会覆盖它来执行一些特殊的清理操作。
+     *
      */
     protected void decodeLast(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         if (in.isReadable()) {

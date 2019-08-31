@@ -28,9 +28,13 @@ import java.util.List;
 /**
  * {@link ChannelInboundHandlerAdapter} which decodes from one message to an other message.
  *
+ * {@link ChannelInboundHandlerAdapter}，从一条消息解码到另一条消息。
+ *
  *
  * For example here is an implementation which decodes a {@link String} to an {@link Integer} which represent
  * the length of the {@link String}.
+ *
+ * 例如，这里有一个实现，它将{@link String}解码为{@link Integer}，后者表示{@link String}的长度。
  *
  * <pre>
  *     public class StringToIntegerDecoder extends

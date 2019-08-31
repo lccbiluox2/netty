@@ -28,6 +28,9 @@ import java.util.List;
 /**
  * A specialized variation of {@link ByteToMessageDecoder} which enables implementation
  * of a non-blocking decoder in the blocking I/O paradigm.
+ *
+ * {@link ByteToMessageDecoder}的一种特殊变体，它支持在阻塞I/O范式中实现非阻塞译码器。
+ *
  * <p>
  * The biggest difference between {@link ReplayingDecoder} and
  * {@link ByteToMessageDecoder} is that {@link ReplayingDecoder} allows you to
@@ -35,6 +38,12 @@ import java.util.List;
  * all required bytes were received already, rather than checking the
  * availability of the required bytes.  For example, the following
  * {@link ByteToMessageDecoder} implementation:
+ *
+ * {@link ReplayingDecoder}和{@link ByteToMessageDecoder}之间最大的区别是，{@link ReplayingDecoder}允许您实现{@code decode()}
+ * 和{@code decodeLast()}方法，就像已经接收了所有需要的字节一样，而不是检查所需字节的可用性。例如，下面的{@link ByteToMessageDecoder}
+ * 实现:
+ * TODO: 我们使用ReplayingDecoder的时候，不用判断数据到底在不在，数据够不够。就像我们所需要的数据都已经收到了一样。
+ *
  * <pre>
  * public class IntegerHeaderFrameDecoder extends {@link ByteToMessageDecoder} {
  *
@@ -42,21 +51,37 @@ import java.util.List;
  *   protected void decode({@link ChannelHandlerContext} ctx,
  *                           {@link ByteBuf} buf, List&lt;Object&gt; out) throws Exception {
  *
- *     if (buf.readableBytes() &lt; 4) {
+ *      // 读取一个整数 如果不够，那么直接返回
+ *     if (buf.readableBytes() < 4) {
  *        return;
  *     }
  *
+ *     // 标识
  *     buf.markReaderIndex();
+ *     // 读取一个整形,相对方法，意味着会移动4个位置
  *     int length = buf.readInt();
  *
- *     if (buf.readableBytes() &lt; length) {
- *        buf.resetReaderIndex();
+ *     // 判断后续的位置是否大于length
+ *     if (buf.readableBytes() < length) {
+ *        buf.resetReaderIndex();  标志A
  *        return;
  *     }
  *
  *     out.add(buf.readBytes(length));
  *   }
  * }
+ *
+ * 代码图示：
+ * 这个程序是读取一个协议的头部，假设一个协议包含消息头和消息体，因为消息头是固定的假设是一个lint类型，消息体是不固定的，我们想读取数据的
+ * 时候，是先读取消息头，获取下面消息体的长度，然后进行读取。
+ *
+ * | 消息头  |<---------------------------------- 消息体 ---------------->|
+ * ====================================================================================================
+ * |        |           |           |           |           |           |           |           |      |
+ * ====================================================================================================
+ *         标志A
+ *         重置到这个位置
+ *         否则就读取后面的消息体。
  * </pre>
  * is simplified like the following with {@link ReplayingDecoder}:
  * <pre>
@@ -72,6 +97,7 @@ import java.util.List;
  * </pre>
  *
  * <h3>How does this work?</h3>
+ * TODO : 这是如何实现的呢？
  * <p>
  * {@link ReplayingDecoder} passes a specialized {@link ByteBuf}
  * implementation which throws an {@link Error} of certain type when there's not
@@ -85,12 +111,20 @@ import java.util.List;
  * back to the 'initial' position (i.e. the beginning of the buffer) and call
  * the {@code decode(..)} method again when more data is received into the
  * buffer.
+ *
+ * {@link ReplayingDecoder}传递一个特殊的{@link ByteBuf}实现，当缓冲区中没有足够的数据时，这个实现会抛出一个特定类型的{@link Error}。
+ * 在上面的{@code IntegerHeaderFrameDecoder}中，您只是假设在调用{@code buf.readInt()}时，缓冲区中会有4个或更多字节。如果缓冲区中
+ * 确实有4个字节，它将像您期望的那样返回整数报头。否则，将引发{@link错误}，并将控件返回给{@link ReplayingDecoder}。如果{@link
+ * ReplayingDecoder}捕获了{@link Error}，那么它将把缓冲区的{@code readerIndex}倒回“初始”位置(即缓冲区的开始位置)，并在缓冲区接
+ * 收到更多数据时再次调用{@code decode(..)}方法。
+ *
  * <p>
  * Please note that {@link ReplayingDecoder} always throws the same cached
  * {@link Error} instance to avoid the overhead of creating a new {@link Error}
  * and filling its stack trace for every throw.
  *
  * <h3>Limitations</h3>
+ * TODO : 限制
  * <p>
  * At the cost of the simplicity, {@link ReplayingDecoder} enforces you a few
  * limitations:
@@ -103,6 +137,13 @@ import java.util.List;
  * <li>You must keep in mind that {@code decode(..)} method can be called many
  *     times to decode a single message.  For example, the following code will
  *     not work:
+ *
+ *  以简单性为代价，{@link ReplayingDecoder}给你施加了一些限制:
+ *  1. 一些缓冲区操作是禁止的。
+ *  2. 如果网络速度较慢且消息格式与上面的示例不同，那么性能可能会更差。在这种情况下，您的解码器可能不得不反复解码消息的相同部分。
+ *
+ * 您必须记住，可以多次调用{@code decode(..)}方法来解码一条消息。例如，以下代码将不起作用:
+ *
  * <pre> public class MyDecoder extends {@link ReplayingDecoder}&lt;{@link Void}&gt; {
  *
  *   private final Queue&lt;Integer&gt; values = new LinkedList&lt;Integer&gt;();
@@ -165,7 +206,9 @@ import java.util.List;
  *
  * <pre>
  * public enum MyDecoderState {
+ *   // 读取长度的字段
  *   READ_LENGTH,
+ *   // 读取内容的字段
  *   READ_CONTENT;
  * }
  *
@@ -184,11 +227,14 @@ import java.util.List;
  *                           {@link ByteBuf} buf, List&lt;Object&gt; out) throws Exception {
  *     switch (state()) {
  *     case READ_LENGTH:
+ *       // 读取长度的字节
  *       length = buf.readInt();
  *       <strong>checkpoint(MyDecoderState.READ_CONTENT);</strong>
  *     case READ_CONTENT:
+ *       // 读取内容
  *       ByteBuf frame = buf.readBytes(length);
  *       <strong>checkpoint(MyDecoderState.READ_LENGTH);</strong>
+ *       // 然后将内容，写到输出
  *       out.add(frame);
  *       break;
  *     default:
@@ -228,6 +274,7 @@ import java.util.List;
  * </pre>
  *
  * <h3>Replacing a decoder with another decoder in a pipeline</h3>
+ * 用管道中的另一个解码器替换一个解码器
  * <p>
  * If you are going to write a protocol multiplexer, you will probably want to
  * replace a {@link ReplayingDecoder} (protocol detector) with another
@@ -264,6 +311,7 @@ import java.util.List;
  * @param <S>
  *        the state type which is usually an {@link Enum}; use {@link Void} if state management is
  *        unused
+ *        状态类型，通常是{@link Enum};如果状态管理未使用，则使用{@link Void}
  */
 public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
 

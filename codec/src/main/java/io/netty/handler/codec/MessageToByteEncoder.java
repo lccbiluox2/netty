@@ -30,6 +30,8 @@ import io.netty.util.internal.TypeParameterMatcher;
  * {@link ChannelOutboundHandlerAdapter} which encodes message in a stream-like fashion from one message to an
  * {@link ByteBuf}.
  *
+ * {@link ChannelOutboundHandlerAdapter}以类似流的方式将消息从一个消息编码为{@link ByteBuf}。
+ *
  *
  * Example implementation which encodes {@link Integer}s to a {@link ByteBuf}.
  *
@@ -146,6 +148,8 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
     /**
      * Encode a message into a {@link ByteBuf}. This method will be called for each written message that can be handled
      * by this encoder.
+     *
+     * 将消息编码为{@link ByteBuf}。此方法将为可由此编码器处理的每个书面消息调用。
      *
      * @param ctx           the {@link ChannelHandlerContext} which this {@link MessageToByteEncoder} belongs to
      * @param msg           the message to encode

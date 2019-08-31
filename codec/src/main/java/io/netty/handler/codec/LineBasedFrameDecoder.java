@@ -32,6 +32,8 @@ import java.util.List;
  * byte values for multibyte codepoint representations therefore fully supported by this implementation.
  * <p>
  * For a more general delimiter-based decoder, see {@link DelimiterBasedFrameDecoder}.
+ *
+ * 行解码器
  */
 public class LineBasedFrameDecoder extends ByteToMessageDecoder {
 

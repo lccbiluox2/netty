@@ -30,19 +30,31 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
  * value of the length field in the message.  It is particularly useful when you
  * decode a binary message which has an integer header field that represents the
  * length of the message body or the whole message.
+ *
+ * 一个解码器，它根据消息中length字段的值动态地分割接收到的{@link ByteBuf}。当您解码具有整数报头字段的二进制消息时，它尤其有用，
+ * 该字段表示消息体或整个消息的长度。
+ *
  * <p>
  * {@link LengthFieldBasedFrameDecoder} has many configuration parameters so
  * that it can decode any message with a length field, which is often seen in
  * proprietary client-server protocols. Here are some example that will give
  * you the basic idea on which option does what.
  *
+ * {@link LengthFieldBasedFrameDecoder}有许多配置参数，因此它可以解码任何具有长度字段的消息，这在专有的客户机-服务器协议中很常见。
+ * 这里有一些例子，可以让您对哪个选项的作用有基本的了解。
+ *
  * <h3>2 bytes length field at offset 0, do not strip header</h3>
+ * 2字节长度字段在偏移量为0时，不要带标题
  *
  * The value of the length field in this example is <tt>12 (0x0C)</tt> which
  * represents the length of "HELLO, WORLD".  By default, the decoder assumes
  * that the length field represents the number of the bytes that follows the
  * length field.  Therefore, it can be decoded with the simplistic parameter
  * combination.
+ *
+ * 本例中的length字段的值是12 (0x0C)，它表示“HELLO, WORLD”的长度。默认情况下，解码器假定length字段表示length字段后面的字节数。因此，
+ * 可以用简单的参数组合对其进行解码。
+ *
  * <pre>
  * <b>lengthFieldOffset</b>   = <b>0</b>
  * <b>lengthFieldLength</b>   = <b>2</b>
@@ -57,6 +69,7 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
  * </pre>
  *
  * <h3>2 bytes length field at offset 0, strip header</h3>
+ * 偏移量为0的2字节长度字段，带标题
  *
  * Because we can get the length of the content by calling
  * {@link ByteBuf#readableBytes()}, you might want to strip the length
@@ -78,6 +91,9 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
  *
  * <h3>2 bytes length field at offset 0, do not strip header, the length field
  *     represents the length of the whole message</h3>
+ *
+ * 2字节长度字段在偏移量为0时，去除消息头，长度字段表示整个消息的长度
+ *
  *
  * In most cases, the length field represents the length of the message body
  * only, as shown in the previous examples.  However, in some protocols, the
@@ -188,6 +204,9 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 
     private final ByteOrder byteOrder;
     private final int maxFrameLength;
+    /**
+     * 偏移量
+     */
     private final int lengthFieldOffset;
     private final int lengthFieldLength;
     private final int lengthFieldEndOffset;

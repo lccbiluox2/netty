@@ -122,6 +122,7 @@ public abstract class ReferenceCountUpdater<T extends ReferenceCounted> {
 
     // rawIncrement == increment << 1
     private T retain0(T instance, final int increment, final int rawIncrement) {
+        // 这里采用了自旋锁的操作
         int oldRef = updater().getAndAdd(instance, rawIncrement);
         if (oldRef != 2 && oldRef != 4 && (oldRef & 1) != 0) {
             throw new IllegalReferenceCountException(0, increment);
