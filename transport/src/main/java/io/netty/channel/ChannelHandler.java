@@ -174,6 +174,18 @@ import java.lang.annotation.Target;
  * {@link ChannelPipeline} to find out more about inbound and outbound operations,
  * what fundamental differences they have, how they flow in a  pipeline,  and how to handle
  * the operation in your application.
+ *
+ * ChannelHandler 是一个接口，处理 I/O 事件或拦截 I/O 操作，并将其转发到其 ChannelPipeline(业务处理链)中的下一个处理程序。
+ *
+ * ChannelHandler 本身并没有提供很多方法，因为这个接口有许多的方法需要实现，方便使用期间，可以继承它的子类：
+ *
+ * ChannelInboundHandler 用于处理入站 I/O 事件。
+ * ChannelOutboundHandler 用于处理出站 I/O 操作。
+ * 或者使用以下适配器类：
+ *
+ * ChannelInboundHandlerAdapter 用于处理入站 I/O 事件。
+ * ChannelOutboundHandlerAdapter 用于处理出站 I/O 操作。
+ * ChannelDuplexHandler 用于处理入站和出站事件。
  */
 public interface ChannelHandler {
 

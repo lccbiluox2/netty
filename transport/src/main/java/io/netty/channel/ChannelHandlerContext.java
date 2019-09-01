@@ -152,9 +152,7 @@ import java.nio.channels.Channels;
  * 请参考{@link ChannelHandler}和{@link ChannelPipeline}了解更多关于入站和出站操作的信息，它们有什么基本的区别
  * ，它们在管道中如何流动，以及如何在应用程序中处理操作。
  *
- *
- *
- * channel的上下文对象
+ * TODO : channel的上下文对象,保存 Channel 相关的所有上下文信息，同时关联一个 ChannelHandler 对象。
  */
 public interface ChannelHandlerContext extends AttributeMap, ChannelInboundInvoker, ChannelOutboundInvoker {
 

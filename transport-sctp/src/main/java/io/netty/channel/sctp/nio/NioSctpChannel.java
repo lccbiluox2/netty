@@ -58,6 +58,13 @@ import java.util.Set;
  *
  * Be aware that not all operations systems support SCTP. Please refer to the documentation of your operation system,
  * to understand what you need to do to use it. Also this feature is only supported on Java 7+.
+ *
+ * TODO: 异步的客户端 Sctp 连接。
+ *
+ * {@link io.netty.channel.sctp.SctpChannel}实现，它使用非阻塞模式，允许将{@link SctpMessage}读入/写入底层{@link SctpChannel}。
+ *
+ * 请注意，并非所有操作系统都支持SCTP。请参阅您的操作系统的文档，以了解您需要做什么来使用它。而且，该特性只支持Java 7+。
+ *
  */
 public class NioSctpChannel extends AbstractNioMessageChannel implements io.netty.channel.sctp.SctpChannel {
     private static final ChannelMetadata METADATA = new ChannelMetadata(false);

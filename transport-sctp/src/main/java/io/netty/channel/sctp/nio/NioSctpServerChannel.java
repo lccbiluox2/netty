@@ -43,6 +43,13 @@ import java.util.Set;
  *
  * Be aware that not all operations systems support SCTP. Please refer to the documentation of your operation system,
  * to understand what you need to do to use it. Also this feature is only supported on Java 7+.
+ *
+ * TODO:NioSctpServerChannel，异步的 Sctp 服务器端连接，这些通道涵盖了 UDP 和 TCP 网络 IO 以及文件 IO。
+ *
+ * 使用非阻塞模式接受新连接并为它们创建{@link NioSctpChannel}的实现。
+ *
+ * 请注意，并非所有操作系统都支持SCTP。请参阅您的操作系统的文档，以了解您需要做什么来使用它。而且，该特性只支持Java 7+。
+ *
  */
 public class NioSctpServerChannel extends AbstractNioMessageChannel
         implements io.netty.channel.sctp.SctpServerChannel {

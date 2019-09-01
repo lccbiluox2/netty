@@ -25,6 +25,8 @@ import java.net.NetworkInterface;
 
 /**
  * A UDP/IP {@link Channel}.
+ *
+ * TODO: DatagramChannel是一个能收发UDP包的通道。
  */
 public interface DatagramChannel extends Channel {
     @Override

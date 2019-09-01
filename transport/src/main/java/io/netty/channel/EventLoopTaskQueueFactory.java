@@ -22,6 +22,11 @@ import java.util.Queue;
  *
  * Generally speaking the returned {@link Queue} MUST be thread-safe and depending on the {@link EventLoop}
  * implementation must be of type {@link java.util.concurrent.BlockingQueue}.
+ *
+ * 工厂用于创建{@link Queue}实例，该实例将用于存储{@link EventLoop}的任务。
+ *
+ * 一般来说，返回的{@link Queue}必须是线程安全的，并且根据{@link EventLoop}实现的类型必须是{@link
+ * java.util.concurrent.BlockingQueue}。
  */
 public interface EventLoopTaskQueueFactory {
 

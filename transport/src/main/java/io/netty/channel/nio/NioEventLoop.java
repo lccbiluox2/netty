@@ -54,6 +54,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * {@link Selector} and so does the multi-plexing of these in the event loop.
  *
  * 非守护线程，
+ * TODO : NioEventLoop 中维护了一个线程和任务队列，支持异步提交执行任务，线程启动时会调用 NioEventLoop 的 run 方法，
+ *        执行 I/O 任务和非 I/O 任务.
+ *       1. I/O 任务，即 selectionKey 中 ready 的事件，如 accept、connect、read、write 等，由 processSelectedKeys 方法触发。
+ *       2. 非 IO 任务，添加到 taskQueue 中的任务，如 register0、bind0 等任务，由 runAllTasks 方法触发。
  */
 public final class NioEventLoop extends SingleThreadEventLoop {
 
