@@ -45,6 +45,8 @@ public interface ChannelFutureListener extends GenericFutureListener<ChannelFutu
     /**
      * A {@link ChannelFutureListener} that closes the {@link Channel} which is
      * associated with the specified {@link ChannelFuture}.
+     *
+     *  //操作完成时关闭Channel
      */
     ChannelFutureListener CLOSE = new ChannelFutureListener() {
         @Override
@@ -56,6 +58,8 @@ public interface ChannelFutureListener extends GenericFutureListener<ChannelFutu
     /**
      * A {@link ChannelFutureListener} that closes the {@link Channel} when the
      * operation ended up with a failure or cancellation rather than a success.
+     *
+     * 操作失败时关闭Channel
      */
     ChannelFutureListener CLOSE_ON_FAILURE = new ChannelFutureListener() {
         @Override
@@ -76,6 +80,7 @@ public interface ChannelFutureListener extends GenericFutureListener<ChannelFutu
         @Override
         public void operationComplete(ChannelFuture future) {
             if (!future.isSuccess()) {
+                // 操作失败时触发一个ExceptionCaught事件
                 future.channel().pipeline().fireExceptionCaught(future.cause());
             }
         }

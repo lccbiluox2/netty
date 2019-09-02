@@ -67,6 +67,8 @@ public interface Promise<V> extends Future<V> {
      *
      * @return {@code true} if and only if successfully marked this future as uncancellable or it is already done
      *         without being cancelled.  {@code false} if this future has been cancelled already.
+     *
+     * 设置结果为不可取消，结果已被取消返回False
      */
     boolean setUncancellable();
 
