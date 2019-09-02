@@ -23,6 +23,9 @@ import java.util.NoSuchElementException;
 
 final class SelectedSelectionKeySet extends AbstractSet<SelectionKey> {
 
+    /**
+     * 这里在以前是有问题的，明显的可以使用一个数组，以前使用的是两个
+     */
     SelectionKey[] keys;
     int size;
 
@@ -34,11 +37,14 @@ final class SelectedSelectionKeySet extends AbstractSet<SelectionKey> {
     @Override
     public boolean add(SelectionKey o) {
         if (o == null) {
+            // 不支持null元素
             return false;
         }
 
+        // 就绪的选择键放在末尾
         keys[size++] = o;
         if (size == keys.length) {
+            // 扩充容量
             increaseCapacity();
         }
 

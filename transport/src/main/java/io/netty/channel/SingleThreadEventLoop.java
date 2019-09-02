@@ -186,6 +186,8 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
 
     /**
      * Marker interface for {@link Runnable} that will not trigger an {@link #wakeup(boolean)} in all cases.
+     *
+     * 标记接口，用于标记不唤醒原生线程的任务
      */
     interface NonWakeupRunnable extends Runnable { }
 }

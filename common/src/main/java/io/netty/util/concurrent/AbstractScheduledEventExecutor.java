@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Abstract base class for {@link EventExecutor}s that want to support scheduling.
+ *
+ * 要支持调度的{@link EventExecutor}的抽象基类。
  */
 public abstract class AbstractScheduledEventExecutor extends AbstractEventExecutor {
     private static final Comparator<ScheduledFutureTask<?>> SCHEDULED_FUTURE_TASK_COMPARATOR =
@@ -37,6 +39,9 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
                 }
             };
 
+    /**
+     * 优先级调度队列
+     */
     PriorityQueue<ScheduledFutureTask<?>> scheduledTaskQueue;
 
     protected AbstractScheduledEventExecutor() {
@@ -46,6 +51,10 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
         super(parent);
     }
 
+    /**
+     * 返回当前时间(相对时间)
+     * @return
+     */
     protected static long nanoTime() {
         return ScheduledFutureTask.nanoTime();
     }
@@ -118,6 +127,8 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
     /**
      * Return the {@link Runnable} which is ready to be executed with the given {@code nanoTime}.
      * You should use {@link #nanoTime()} to retrieve the correct {@code nanoTime}.
+     *
+     * 取得并移除截止时间大于nanoTime的下一个调度任务
      */
     protected final Runnable pollScheduledTask(long nanoTime) {
         Queue<ScheduledFutureTask<?>> scheduledTaskQueue = this.scheduledTaskQueue;
@@ -146,6 +157,8 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
 
     /**
      * Return the nanoseconds when the next scheduled task is ready to be run or {@code -1} if no task is scheduled.
+     *
+     * 取得距离下一个调度任务执行的间隔时间
      */
     protected final long nextScheduledTaskNano() {
         ScheduledFutureTask<?> scheduledTask = peekScheduledTask();
@@ -161,6 +174,10 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
         return scheduledTask != null ? scheduledTask.deadlineNanos() : -1;
     }
 
+    /**
+     * 取得但并不移除下一个调度任务
+     * @return
+     */
     final ScheduledFutureTask<?> peekScheduledTask() {
         Queue<ScheduledFutureTask<?>> scheduledTaskQueue = this.scheduledTaskQueue;
         return scheduledTaskQueue != null ? scheduledTaskQueue.peek() : null;
@@ -168,6 +185,8 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
 
     /**
      * Returns {@code true} if a scheduled task is ready for processing.
+     *
+     * 是否有将要执行的调度任务
      */
     protected final boolean hasScheduledTasks() {
         ScheduledFutureTask<?> scheduledTask = peekScheduledTask();
@@ -256,10 +275,18 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
         // NOOP
     }
 
+    /**
+     * TODO: 该调度任务队列是一个优先级队列，并使用了延迟加载。其核心的调度方法实现如下
+     * @param task
+     * @param <V>
+     * @return
+     */
     private <V> ScheduledFuture<V> schedule(final ScheduledFutureTask<V> task) {
         if (inEventLoop()) {
+            // 原生线程直接向任务队列添加
             scheduledTaskQueue().add(task);
         } else {
+            // 其他线程则提交一个添加调度任务的任务
             executeScheduledRunnable(new Runnable() {
                 @Override
                 public void run() {
@@ -271,6 +298,10 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
         return task;
     }
 
+    /**
+     * 删除一个调度任务
+     * @param task
+     */
     final void removeScheduled(final ScheduledFutureTask<?> task) {
         if (inEventLoop()) {
             removedSchedule0(task);
