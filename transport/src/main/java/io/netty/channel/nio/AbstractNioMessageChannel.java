@@ -76,10 +76,13 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
             try {
                 try {
                     do {
+                        // TODO： 模板方法，读取消息
                         int localRead = doReadMessages(readBuf);
+                        // 没有数据可读
                         if (localRead == 0) {
                             break;
                         }
+                        // 读取出错
                         if (localRead < 0) {
                             closed = true;
                             break;
@@ -95,14 +98,18 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 for (int i = 0; i < size; i ++) {
                     readPending = false;
                     // 调用pipeline中所有handler的channelRead方法
+                    // 触发ChannelRead事件，用户处理
                     pipeline.fireChannelRead(readBuf.get(i));
                 }
                 readBuf.clear();
                 allocHandle.readComplete();
                 // 处理channel read complete
+                // ChannelReadComplete事件中如果配置autoRead则会调用beginRead，从而不断进行读操作
+                // 触发ChannelReadComplete事件，用户处理
                 pipeline.fireChannelReadComplete();
 
                 if (exception != null) {
+                    // ServerChannel异常也不能关闭，应该恢复读取下一个客户端
                     closed = closeOnReadError(exception);
 
                     pipeline.fireExceptionCaught(exception);
@@ -111,6 +118,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 if (closed) {
                     inputShutdown = true;
                     if (isOpen()) {
+                        // 非serverChannel且打开则关闭
                         close(voidPromise());
                     }
                 }
@@ -122,6 +130,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 //
                 // See https://github.com/netty/netty/issues/2254
                 if (!readPending && !config.isAutoRead()) {
+                    // 既没有配置autoRead也没有底层读事件进行
                     removeReadOp();
                 }
             }
