@@ -56,6 +56,28 @@ import java.util.List;
  * | ABC\nDEF |
  * +----------+
  * </pre>
+ *
+ * 将接收到的{@link ByteBuf}分隔为一个或多个分隔符的解码器。它对于解码以分隔符结尾的帧特别有用，例如{@link Delimiters#nulDelimiter() NUL}
+ * 或{@linkplain Delimiters#lineDelimiter() 换行符}。
+ *
+ * 预定义的分隔符
+ *
+ * 为了方便起见，{@link分隔符}定义了常用的分隔符。
+ *
+ * <p>指定多个分隔符</p>
+ *
+ * {@link DelimiterBasedFrameDecoder}允许指定多个分隔符。如果在缓冲区中发现多个分隔符，则选择产生最短帧的分隔符。例如，如果你的缓冲区有以下数据:
+ * +--------------+
+ * | ABC\nDEF\r\n |
+ * +--------------+
+ * a (@link DelimiterBasedFrameDecoder) (@link Delimiters#lineDelimiter)将选择(@code)作为第一个Delimiters，并制作了两张照片:
+ * +-----+-----+
+ * | ABC | DEF |
+ * +-----+-----+
+ * 而不是错误地选择{@code '\r\n'}作为第一个分隔符:
+ * +----------+
+ * | ABC\nDEF |
+ * +----------+
  */
 public class DelimiterBasedFrameDecoder extends ByteToMessageDecoder {
 

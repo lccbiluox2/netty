@@ -202,6 +202,7 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
  */
 public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 
+    /** 表示长度字段的字节序 */
     private final ByteOrder byteOrder;
     private final int maxFrameLength;
     /**

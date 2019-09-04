@@ -33,18 +33,34 @@ import java.util.List;
  * <p>
  * For a more general delimiter-based decoder, see {@link DelimiterBasedFrameDecoder}.
  *
+ * 一种解码器，它在行结束符上分割接收到的{@link ByteBuf}。
+ *
+ * 处理{@code "\n"}和{@code "\r\n"}。
+ *
+ * 字节流预期为UTF-8字符编码或ASCII。当前实现使用直接的{@code byte}到{@code char}转换，然后将这个{@code char}与几个低范围
+ * 的ASCII字符进行比较，比如{@code '\n'}或{@code '\r'}。UTF-8没有使用低射程[0..]因此，这个实现完全支持多字节码点表示的字节值。
+ *
  * 行解码器
  */
 public class LineBasedFrameDecoder extends ByteToMessageDecoder {
 
-    /** Maximum length of a frame we're willing to decode.  */
+    /** Maximum length of a frame we're willing to decode.
+     * 最大帧长度，超过此长度将抛出异常TooLongFrameException
+     * */
     private final int maxLength;
-    /** Whether or not to throw an exception as soon as we exceed maxLength. */
+    /** Whether or not to throw an exception as soon as we exceed maxLength.
+     *
+     *  是否快速失败，true-检测到帧长度过长立即抛出异常不在读取整个帧false-检测到帧长度过长依然读完整个帧再抛出异常
+     * */
     private final boolean failFast;
+    /** 是否略过分隔符，true-解码结果不含分隔符 */
     private final boolean stripDelimiter;
 
-    /** True if we're discarding input because we're already over maxLength.  */
+    /** True if we're discarding input because we're already over maxLength.
+     * 超过最大帧长度是否丢弃字节
+     * */
     private boolean discarding;
+    /** 丢弃的字节数 */
     private int discardedBytes;
 
     /** Last scan position. */
@@ -165,6 +181,9 @@ public class LineBasedFrameDecoder extends ByteToMessageDecoder {
     /**
      * Returns the index in the buffer of the end of line found.
      * Returns -1 if no end of line was found in the buffer.
+     *
+     * 返回找到的行末尾的缓冲区中的索引。
+     * 如果缓冲区中没有找到行尾，则返回-1。
      */
     private int findEndOfLine(final ByteBuf buffer) {
         int totalLength = buffer.readableBytes();
