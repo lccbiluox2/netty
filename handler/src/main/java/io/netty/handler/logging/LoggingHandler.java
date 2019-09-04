@@ -35,16 +35,21 @@ import static io.netty.util.internal.StringUtil.NEWLINE;
 /**
  * A {@link ChannelHandler} that logs all events using a logging framework.
  * By default, all events are logged at <tt>DEBUG</tt> level.
+ *
+ * 使用日志框架记录所有事件的{@link ChannelHandler}。默认情况下，所有事件都记录在DEBUG级别。
  */
 @Sharable
 @SuppressWarnings({ "StringConcatenationInsideStringBufferAppend", "StringBufferReplaceableByString" })
 public class LoggingHandler extends ChannelDuplexHandler {
 
+    /** 默认级别为Debug **/
     private static final LogLevel DEFAULT_LEVEL = LogLevel.DEBUG;
 
+    /** 实际使用的日志处理，slf4j、log4j等 */
     protected final InternalLogger logger;
+    /** 日志框架使用的日志级别 */
     protected final InternalLogLevel internalLevel;
-
+    /** Netty使用的日志级别 */
     private final LogLevel level;
 
     /**
@@ -65,8 +70,9 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (level == null) {
             throw new NullPointerException("level");
         }
-
+        // 获得实际的日志框架
         logger = InternalLoggerFactory.getInstance(getClass());
+        // 设置日志级别
         this.level = level;
         internalLevel = level.toInternalLevel();
     }
@@ -235,9 +241,11 @@ public class LoggingHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        // 记录日志
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "READ", msg));
         }
+        // 传播事件
         ctx.fireChannelRead(msg);
     }
 
@@ -319,6 +327,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
 
     /**
      * Generates the default log message of the specified event whose argument is a {@link ByteBuf}.
+     * 生成指定事件的默认日志消息，其参数为{@link ByteBuf}。
      */
     private static String formatByteBuf(ChannelHandlerContext ctx, String eventName, ByteBuf msg) {
         String chStr = ctx.channel().toString();

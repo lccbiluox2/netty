@@ -41,6 +41,8 @@ public abstract class ChannelHandlerAdapter implements ChannelHandler {
     /**
      * Return {@code true} if the implementation is {@link Sharable} and so can be added
      * to different {@link ChannelPipeline}s.
+     *
+     * 如果实现是{@link Sharable}，那么返回{@code true}，这样就可以添加到不同的{@link ChannelPipeline}中。
      */
     public boolean isSharable() {
         /**
@@ -49,12 +51,17 @@ public abstract class ChannelHandlerAdapter implements ChannelHandler {
          * {@link WeakHashMap} instances per {@link Thread} is good enough for us and the number of
          * {@link Thread}s are quite limited anyway.
          *
+         * 缓存{@link Sharable}注释检测的结果，以解决某个条件。我们使用{@link ThreadLocal}和{@link WeakHashMap}来消除易失性的写/读。
+         * 对于我们来说，每个{@link线程}使用不同的{@link WeakHashMap}实例就足够了，而且{@link线程}的数量非常有限。
+         *
          * See <a href="https://github.com/netty/netty/issues/2289">#2289</a>.
          */
         Class<?> clazz = getClass();
+        // 每个线程一个缓存
         Map<Class<?>, Boolean> cache = InternalThreadLocalMap.get().handlerSharableCache();
         Boolean sharable = cache.get(clazz);
         if (sharable == null) {
+            // Handler是否存在Sharable注解
             sharable = clazz.isAnnotationPresent(Sharable.class);
             cache.put(clazz, sharable);
         }
