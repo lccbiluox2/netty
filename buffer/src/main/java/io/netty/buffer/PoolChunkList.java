@@ -29,14 +29,21 @@ import java.nio.ByteBuffer;
 
 final class PoolChunkList<T> implements PoolChunkListMetric {
     private static final Iterator<PoolChunkMetric> EMPTY_METRICS = Collections.<PoolChunkMetric>emptyList().iterator();
+    /** 所属的Arena */
     private final PoolArena<T> arena;
+    /** 下一个状态 **/
     private final PoolChunkList<T> nextList;
+    /** 状态的最小内存使用率 */
     private final int minUsage;
+    /** 状态的最大内存使用率 */
     private final int maxUsage;
+    /** 该状态下的一个Chunk可分配的最大字节数 **/
     private final int maxCapacity;
+    /** head节点 */
     private PoolChunk<T> head;
 
     // This is only update once when create the linked like list of PoolChunkList in PoolArena constructor.
+    /** 上一个状态 **/
     private PoolChunkList<T> prevList;
 
     // TODO: Test if adding padding helps under contention
@@ -48,18 +55,22 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
         this.nextList = nextList;
         this.minUsage = minUsage;
         this.maxUsage = maxUsage;
+        // 计算该状态下，一个Chunk块可以分配的最大内存
         maxCapacity = calculateMaxCapacity(minUsage, chunkSize);
     }
 
     /**
      * Calculates the maximum capacity of a buffer that will ever be possible to allocate out of the {@link PoolChunk}s
      * that belong to the {@link PoolChunkList} with the given {@code minUsage} and {@code maxUsage} settings.
+     *
+     * 使用给定的{@code minUsage}和{@code maxUsage}设置计算从属于{@link PoolChunkList}的{@link PoolChunk}中分配的缓冲区的最大容量。
      */
     private static int calculateMaxCapacity(int minUsage, int chunkSize) {
         minUsage = minUsage0(minUsage);
 
         if (minUsage == 100) {
             // If the minUsage is 100 we can not allocate anything out of this list.
+            // Q100 不能再分配
             return 0;
         }
 
@@ -68,22 +79,25 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
         // As an example:
         // - If a PoolChunkList has minUsage == 25 we are allowed to allocate at most 75% of the chunkSize because
         //   this is the maximum amount available in any PoolChunk in this PoolChunkList.
+        // Q25中一个Chunk可以分配的最大内存为0.75 * ChunkSize
         return  (int) (chunkSize * (100L - minUsage) / 100L);
     }
 
     void prevList(PoolChunkList<T> prevList) {
+        // 这个方法只应该在创建时调用一次
         assert this.prevList == null;
         this.prevList = prevList;
     }
 
     boolean allocate(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
+        // 该状态下还没有符合的Chunk块,申请的内存已超过一个Chunk块可以分配的最大内存
         if (normCapacity > maxCapacity) {
             // Either this PoolChunkList is empty or the requested capacity is larger then the capacity which can
             // be handled by the PoolChunks that are contained in this PoolChunkList.
             return false;
         }
 
-        // 从head节点开始遍历
+        // 从head节点开始遍历,Chunk链表中寻找满足需求的Chunk块
         for (PoolChunk<T> cur = head; cur != null; cur = cur.next) {
             // 尝试使用已有PoolChunk进行分配
             if (cur.allocate(buf, reqCapacity, normCapacity)) {
@@ -91,19 +105,23 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
                 // 判断PoolChunkList是否需要重新调整
                 if (cur.usage() >= maxUsage) {
                     remove(cur);
+                    // 分配后需要向右移动至符合的状态
                     nextList.add(cur);
                 }
                 return true;
             }
         }
+        // 没有满足需求
         return false;
     }
 
     boolean free(PoolChunk<T> chunk, long handle, ByteBuffer nioBuffer) {
+        // chunk释放占用的内存
         chunk.free(handle, nioBuffer);
         if (chunk.usage() < minUsage) {
             remove(chunk);
             // Move the PoolChunk down the PoolChunkList linked-list.
+            // 向左移动到符合的状态
             return move0(chunk);
         }
         return true;
@@ -114,10 +132,12 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
 
         if (chunk.usage() < minUsage) {
             // Move the PoolChunk down the PoolChunkList linked-list.
+            // 向左移动到正确状态，递归调用
             return move0(chunk);
         }
 
         // PoolChunk fits into this PoolChunkList, adding it here.
+        // 到达正确状态后，加入双向链表
         add0(chunk);
         return true;
     }
@@ -130,9 +150,11 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
         if (prevList == null) {
             // There is no previous PoolChunkList so return false which result in having the PoolChunk destroyed and
             // all memory associated with the PoolChunk will be released.
+            // 此时表示chunk为Q0状态，且还需要移动，说明Chunk使用率为0
             assert chunk.usage() == 0;
             return false;
         }
+        // 向左移动
         return prevList.move(chunk);
     }
 
@@ -146,6 +168,7 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
 
     /**
      * Adds the {@link PoolChunk} to this {@link PoolChunkList}.
+     * 增加一个Chunk节点
      */
     void add0(PoolChunk<T> chunk) {
         chunk.parent = this;
@@ -161,7 +184,10 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
         }
     }
 
-    // 去除双向链表中的该节点
+    /**
+     * 去除双向链表中的该节点
+     * @param cur
+     */
     private void remove(PoolChunk<T> cur) {
         if (cur == head) {
             head = cur.next;
@@ -232,9 +258,11 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
     void destroy(PoolArena<T> arena) {
         PoolChunk<T> chunk = head;
         while (chunk != null) {
+            // 释放Chunk
             arena.destroyChunk(chunk);
             chunk = chunk.next;
         }
+        // GC回收节点
         head = null;
     }
 }

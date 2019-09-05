@@ -43,6 +43,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @deprecated will be removed in the next major release
  *
  * 检查线程是否处于活动状态，并在线程死亡时运行任务.
+ *
+ * 这个线程启动一个守护进程线程来检查被监视线程的状态，并调用它们关联的{@link Runnable}。当没有要监视的线程(即所有线程都已死)时，
+ * 守护进程线程将自行终止，并且在添加新监视时将重新启动一个新的守护进程线程。
  */
 @Deprecated
 public final class ThreadDeathWatcher {
@@ -53,9 +56,17 @@ public final class ThreadDeathWatcher {
 
     // Use a MPMC queue as we may end up checking isEmpty() from multiple threads which may not be allowed to do
     // concurrently depending on the implementation of it in a MPSC queue.
+    /**
+     * 被观察的线程
+     * */
     private static final Queue<Entry> pendingEntries = new ConcurrentLinkedQueue<Entry>();
+    /**
+     * 观察任务
+     */
     private static final Watcher watcher = new Watcher();
+    /** 观察线程是否启动 */
     private static final AtomicBoolean started = new AtomicBoolean();
+    /** 观察线程 */
     private static volatile Thread watcherThread;
 
     static {
@@ -116,8 +127,10 @@ public final class ThreadDeathWatcher {
      * @param isWatch   判断线程是否处于守望
      */
     private static void schedule(Thread thread, Runnable task, boolean isWatch) {
+        // 加入等待队列
         pendingEntries.add(new Entry(thread, task, isWatch));
 
+        // started为false则启动观察线程
         if (started.compareAndSet(false, true)) {
             final Thread watcherThread = threadFactory.newThread(watcher);
             // Set to null to ensure we not create classloader leaks by holds a strong reference to the inherited
@@ -170,19 +183,24 @@ public final class ThreadDeathWatcher {
         @Override
         public void run() {
             for (;;) {
+                // 得到需要观察的线程
                 fetchWatchees();
+                // 线程异常结束执行清理操作
                 notifyWatchees();
 
                 // Try once again just in case notifyWatchees() triggered watch() or unwatch().
+                // 再次执行，防止notify触发新的观察线程
                 fetchWatchees();
                 notifyWatchees();
 
                 try {
+                    // 周期1秒
                     Thread.sleep(1000);
                 } catch (InterruptedException ignore) {
                     // Ignore the interrupt; do not terminate until all tasks are run.
                 }
 
+                // 没有需要被观察的线程则结束该观察线程
                 if (watchees.isEmpty() && pendingEntries.isEmpty()) {
 
                     // Mark the current worker thread as stopped.
@@ -197,6 +215,7 @@ public final class ThreadDeathWatcher {
                         //    -> safe to terminate because there's nothing left to do
                         // B) a new watcher thread started and handled them all
                         //    -> safe to terminate the new watcher thread will take care the rest
+                        // 没有任务则退出
                         break;
                     }
 
@@ -204,6 +223,7 @@ public final class ThreadDeathWatcher {
                     if (!started.compareAndSet(false, true)) {
                         // watch() started a new watcher thread and set 'started' to true.
                         // -> terminate this thread so that the new watcher reads from pendingEntries exclusively.
+                        // 此时watch()方法启动新的观察线程，该线程退出
                         break;
                     }
 
@@ -222,8 +242,10 @@ public final class ThreadDeathWatcher {
                 }
 
                 if (e.isWatch) {
+                    // 需要观察
                     watchees.add(e);
                 } else {
+                    // 正常原因死亡，不需要遗嘱
                     watchees.remove(e);
                 }
             }
@@ -234,8 +256,10 @@ public final class ThreadDeathWatcher {
             for (int i = 0; i < watchees.size();) {
                 Entry e = watchees.get(i);
                 if (!e.thread.isAlive()) {
+                    // 非正常死亡
                     watchees.remove(i);
                     try {
+                        // 遗嘱中的清理操作
                         e.task.run();
                     } catch (Throwable t) {
                         logger.warn("Thread death watcher task raised an exception:", t);
@@ -248,8 +272,11 @@ public final class ThreadDeathWatcher {
     }
 
     private static final class Entry {
+        /** 被观察线程 **/
         final Thread thread;
+        /** 清理缓存操作 **/
         final Runnable task;
+        /** 是否需要被观察 **/
         final boolean isWatch;
 
         Entry(Thread thread, Runnable task, boolean isWatch) {

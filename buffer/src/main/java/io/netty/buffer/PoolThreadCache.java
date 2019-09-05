@@ -75,13 +75,17 @@ final class PoolThreadCache {
 
     /**
      * Used for bitshifting when calculate the index of normal caches later
+     * 用于计算normal请求的数组索引 = log2(pageSize)
      */
     private final int numShiftsNormalDirect;
     private final int numShiftsNormalHeap;
+
+    /** 分配次数到达该阈值则检测释放 **/
     private final int freeSweepAllocationThreshold;
     private final AtomicBoolean freed = new AtomicBoolean();
 
     /**
+     * 分配次数
      * 在本地线程每分配freeSweepAllocationThreshold 次内存后，检测一下是否需要释放内存
      */
     private int allocations;
@@ -191,6 +195,7 @@ final class PoolThreadCache {
 
     /**
      * Try to allocate a tiny buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
+     * 尝试从缓存中分配一个小缓冲区。如果成功，返回{@code true}，否则返回{@code false}
      */
     boolean allocateTiny(PoolArena<?> area, PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {
         return allocate(cacheForTiny(area, normCapacity), buf, reqCapacity);
@@ -348,6 +353,7 @@ final class PoolThreadCache {
     }
 
     private MemoryRegionCache<?> cacheForTiny(PoolArena<?> area, int normCapacity) {
+        // normCapacity >>> 4, 即16B的索引为1
         int idx = PoolArena.tinyIdx(normCapacity);
         if (area.isDirect()) {
             return cache(tinySubPageDirectCaches, idx);
@@ -470,6 +476,7 @@ final class PoolThreadCache {
 
         /**
          * Allocate something out of the cache if possible and remove the entry from the cache.
+         * 如果可能，从缓存中分配一些内容并从缓存中删除条目。
          */
         public final boolean allocate(PooledByteBuf<T> buf, int reqCapacity) {
             // 从队列头部取出
@@ -542,18 +549,12 @@ final class PoolThreadCache {
         }
 
         static final class Entry<T> {
-            /**
-             * 回收该对象
-             */
+            /**  回收该对象 */
             final Handle<Entry<?>> recyclerHandle;
-            /**
-             * ByteBuf之前分配所属的Chunk
-             */
+            /** ByteBuf之前分配所属的Chunk */
             PoolChunk<T> chunk;
             ByteBuffer nioBuffer;
-            /**
-             * ByteBuf之前分配所属的Chunk
-             */
+            /** ByteBuf之前分配所属的Chunk */
             long handle = -1;
 
             Entry(Handle<Entry<?>> recyclerHandle) {

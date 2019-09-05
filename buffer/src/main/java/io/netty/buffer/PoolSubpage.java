@@ -25,41 +25,33 @@ package io.netty.buffer;
  */
 final class PoolSubpage<T> implements PoolSubpageMetric {
 
-    /**
-     * 所属的PoolChunk
-     */
+    /** 所属的PoolChunk */
     final PoolChunk<T> chunk;
     /**
-     * 与PoolChunk中哪个节点映射一起来
+     * 与PoolChunk中哪个节点映射一起来，所属Page的标号
      */
     private final int memoryMapIdx;
+    /** 在整个Chunk的偏移字节数 */
     private final int runOffset;
-    /**
-     * 该叶子节点的大小
-     */
+    /**  该叶子节点的大小,页大小 */
     private final int pageSize;
     /**
+     * 均等小块的分配信息
      * bitmap的每一位都描述的是一个element的使用情况
      * 数组中每个long的每一位表示一个块存储区域的使用情况：0表示未占用，1表示占用
      * 例如：对于一个4k的Page来说，如果这个Page用来分配1k的内存区域，那么long数组中就有一个long类型的元素且这个数值的低4位用来表示4个存储区域的占用情况
      */
     private final long[] bitmap;
 
-    /**
-     * arena双向链表的前驱节点
-     */
+    /** arena双向链表的前驱节点 */
     PoolSubpage<T> prev;
-    /**
-     * arena双向链表的后继节点
-     */
+    /** arena双向链表的后继节点 */
     PoolSubpage<T> next;
 
-    /**
-     * 是否需要释放整个Page
-     */
+    /** 是否需要释放整个Page,是否需要释放整个Page */
     boolean doNotDestroy;
     /**
-     * 此次申请的大小，比如申请64b，那么这个page被分成了8k/64 = 128个
+     * 均等切分的大小,此次申请的大小，比如申请64b，那么这个page被分成了8k/64 = 128个
      * 块大小是由第一次申请的内存大小决定的
      */
     int elemSize;
@@ -108,8 +100,8 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
          *
          * 因为小于8K的内存, 最小是以16b为单位来分配的, 一个long类型为64位,
          * 最多需要pageSize/(16*64)个long就可以将一个PoolSubpage中所有element是否分配描述清楚了, log2(16*64)=10
+         *  bitmap数组的最大长度 = pageSize / 16 / 64 ~ 10
          */
-        // bitmap数组的最大长度 = pageSize / 16 / 64 ~ 10
         bitmap = new long[pageSize >>> 10];
         init(head, elemSize);
     }
@@ -131,6 +123,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
             bitmapLength = maxNumElems >>> 6;
             // 如果最大块数不是64的整数倍，则 bitmapLength+1
             if ((maxNumElems & 63) != 0) {
+                // subpage不是64倍，多需要一个long
                 bitmapLength++;
             }
 
@@ -151,7 +144,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
             return toHandle(0);
         }
 
-        // 若是没有可用块或是被销毁了，则返回-1
+        // 若是没有可用块或是被销毁了，则返回-1， 1.没有可分配均等小块 2.需要销毁(arena池中有其他可分配subpage)
         if (numAvail == 0 || !doNotDestroy) {
             return -1;
         }
@@ -159,18 +152,22 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         // 得到此Page中下一个可用“块”的位置bitmapIdx
         // 例如：假设bitmapIdx=66，则q=1，r=2，即是用bitmap[1]这个long类型数的第2个bit位来表示此“内存块”的
         final int bitmapIdx = getNextAvail();
+        // 高24为表示long数组索引
         int q = bitmapIdx >>> 6;
+        // 低6位表示在long中实际分配的二进制位
         int r = bitmapIdx & 63;
         // 此bit位此时应该为0
         assert (bitmap[q] >>> r & 1) == 0;
-        // 将bitmap[q]这个long型的数的第r bit置为1，标识此“块”已经被分配
+        // 将bitmap[q]这个long型的数的第r bit置为1，标识此“块”已经被分配，将该信息加入到分配信息中
         bitmap[q] |= 1L << r;
 
         // 将Page的可用"块数"减1，如果结果为0，表示此Page无内存可分配了，将其从PoolArena所持有的链表中移除
         if (--numAvail == 0) {
+            // 没有可分配的均等块则从arena双向链表删除
             removeFromPool();
         }
 
+        // 转换为64位分配信息
         return toHandle(bitmapIdx);
     }
 
@@ -183,19 +180,25 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         if (elemSize == 0) {
             return true;
         }
+        // long数组索引
         int q = bitmapIdx >>> 6;
+        // long的二进制位偏移
         int r = bitmapIdx & 63;
         assert (bitmap[q] >>> r & 1) != 0;
+        // 异或运算清除改位
         bitmap[q] ^= 1L << r;
 
+        // 该位置的小块可用于下次分配
         setNextAvail(bitmapIdx);
 
         if (numAvail ++ == 0) {
+            // 该page已分配了至少一个subpage，加入到arena双向链表
             addToPool(head);
             return true;
         }
 
         if (numAvail != maxNumElems) {
+            // prev==next==head 只有头结点和该节点
             return true;
         } else {
             // Subpage not in use (numAvail == maxNumElems)
@@ -205,6 +208,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
             }
 
             // Remove this subpage from the pool if there are other subpages left in the pool.
+            // 从双向链表中释放，因为双向链表中至少有一个可用节点
             doNotDestroy = false;
             removeFromPool();
             return false;
@@ -212,8 +216,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     }
 
     /**
-     * 将改PoolSubpage加入到PoolArena的双向链表中
-     * 每次新加入的节点都在head之后
+     * 将改PoolSubpage加入到PoolArena的双向链表中，每次新加入的节点都在head之后
      */
     private void addToPool(PoolSubpage<T> head) {
         assert prev == null && next == null;
@@ -242,6 +245,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         int nextAvail = this.nextAvail;
         if (nextAvail >= 0) {
             // Page被第一次申请时nextAvail = 0,会直接返回。表示直接用第0位内存块
+            // 此时的nextAvail是上一个释放的均等小块
             this.nextAvail = -1;
             return nextAvail;
         }
@@ -256,7 +260,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
             // 对标识数组bitmap中的每一个long元素进行判断
             long bits = bitmap[i];
             if (~bits != 0) {
-                // 还存在至少一个bit位不为1
+                // 还存在至少一个bit位不为1，还有可用的均等小块
                 return findNextAvail0(i, bits);
             }
         }
@@ -276,7 +280,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         final int maxNumElems = this.maxNumElems;
         final int baseVal = i << 6;
 
-        // 对long类型的数的每一bit位进行判断
+        // 对long类型的数的每一bit位进行判断，long从低位开始表示分配信息，最低位表示第1块分配
         for (int j = 0; j < 64; j++) {
             // //第j（bit）为0，即为可用
             if ((bits & 1) == 0) {
