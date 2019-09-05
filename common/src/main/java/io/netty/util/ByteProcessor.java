@@ -35,6 +35,7 @@ public interface ByteProcessor {
 
         @Override
         public boolean process(byte value) {
+            // 期望找到某个字节，但此处需要使用!=
             return value != byteToFind;
         }
     }

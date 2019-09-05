@@ -34,15 +34,25 @@ import static io.netty.util.internal.ObjectUtil.checkNotNull;
  * Big endian Java heap buffer implementation. It is recommended to use
  * {@link UnpooledByteBufAllocator#heapBuffer(int, int)}, {@link Unpooled#buffer(int)} and
  * {@link Unpooled#wrappedBuffer(byte[])} instead of calling the constructor explicitly.
+ *
+ * 大端Java堆缓冲区实现。建议使用{@link UnpooledByteBufAllocator#heapBuffer(int, int)}、{@link Unpooled#buffer(int)}和
+ * {@link Unpooled#wrappedBuffer(byte[])} 来代替显式调用构造函数。
  */
 public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
 
+    /**
+     * 分配器
+     */
     private final ByteBufAllocator alloc;
+    /** 底层字节数组 **/
     byte[] array;
+    /** NIO的ByteBuffer形式 **/
     private ByteBuffer tmpNioBuf;
 
     /**
      * Creates a new heap buffer with a newly allocated byte array.
+     *
+     * 使用新分配的字节数组创建新的堆缓冲区。
      *
      * @param initialCapacity the initial capacity of the underlying byte array
      * @param maxCapacity the max capacity of the underlying byte array
@@ -102,11 +112,19 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
         return alloc;
     }
 
+    /**
+     * 默认的字节序：大端模式
+     * @return
+     */
     @Override
     public ByteOrder order() {
         return ByteOrder.BIG_ENDIAN;
     }
 
+    /**
+     * 是否直接数组
+     * @return
+     */
     @Override
     public boolean isDirect() {
         return false;
@@ -127,12 +145,14 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
         }
 
         int bytesToCopy;
+        // 容量扩增
         if (newCapacity > oldCapacity) {
             bytesToCopy = oldCapacity;
         } else {
             trimIndicesToCapacity(newCapacity);
             bytesToCopy = newCapacity;
         }
+        // 申请数组
         byte[] newArray = allocateArray(newCapacity);
         System.arraycopy(oldArray, 0, newArray, 0, bytesToCopy);
         setArray(newArray);
@@ -140,6 +160,10 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
         return this;
     }
 
+    /**
+     * 底层是否有JAVA堆字节数组
+     * @return
+     */
     @Override
     public boolean hasArray() {
         return true;
@@ -151,11 +175,19 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
         return array;
     }
 
+    /**
+     *  底层数组的偏移量
+     * @return
+     */
     @Override
     public int arrayOffset() {
         return 0;
     }
 
+    /**
+     * 是否含有os底层的数组起始地址
+     * @return
+     */
     @Override
     public boolean hasMemoryAddress() {
         return false;

@@ -47,7 +47,12 @@ import io.netty.util.internal.TypeParameterMatcher;
  */
 public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdapter {
 
+    /**
+     * 用于检测泛型参数是否是期待的类型，比如说，如果需要编码`String`类的POJO对象，Matcher会确保`write()`传入
+     * 的参数`Object`的实际切确类型为`String`。
+     */
     private final TypeParameterMatcher matcher;
+    /** 表示是否使用内核的DirectedByteBuf，默认为true  */
     private final boolean preferDirect;
 
     /**
@@ -104,16 +109,20 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
             if (acceptOutboundMessage(msg)) {
                 @SuppressWarnings("unchecked")
                 I cast = (I) msg;
+                // 分配一个输出缓冲区
                 buf = allocateBuffer(ctx, cast, preferDirect);
                 try {
+                    // 用户定义的编码方法
                     encode(ctx, cast, buf);
                 } finally {
                     ReferenceCountUtil.release(cast);
                 }
 
                 if (buf.isReadable()) {
+                    // 确实写入了数据
                     ctx.write(buf, promise);
                 } else {
+                    // 没有需要写的数据，也有可能是用户编码错误
                     buf.release();
                     ctx.write(Unpooled.EMPTY_BUFFER, promise);
                 }
@@ -135,12 +144,17 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
     /**
      * Allocate a {@link ByteBuf} which will be used as argument of {@link #encode(ChannelHandlerContext, I, ByteBuf)}.
      * Sub-classes may override this method to return {@link ByteBuf} with a perfect matching {@code initialCapacity}.
+     *
+     * 分配一个{@link ByteBuf}作为{@link #encode(ChannelHandlerContext, I, ByteBuf)}的参数。子类可以覆盖此方法，以返回具有
+     * 完美匹配的{@code initialCapacity}的{@link ByteBuf}。
      */
     protected ByteBuf allocateBuffer(ChannelHandlerContext ctx, @SuppressWarnings("unused") I msg,
                                boolean preferDirect) throws Exception {
         if (preferDirect) {
+            // 内核直接缓存
             return ctx.alloc().ioBuffer();
         } else {
+            // JAVA队缓存
             return ctx.alloc().heapBuffer();
         }
     }

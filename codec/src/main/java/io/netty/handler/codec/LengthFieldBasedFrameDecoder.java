@@ -202,16 +202,27 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
  */
 public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 
-    /** 表示长度字段的字节序 */
+    /** 表示长度字段的字节序 大端或小端，默认为大端 */
     private final ByteOrder byteOrder;
     private final int maxFrameLength;
     /**
-     * 偏移量
+     * 偏移量，表示长度字段偏移量即在一个数据包中长度字段的具体下标位置。标准情况，该长度字段为数据部分长度。
      */
     private final int lengthFieldOffset;
+    /**
+     * 表示长度字段的具体字节数，如一个int占4字节。该解码器支持的字节数有：1，2，3，4和8，其他则会抛出异常。另外，还需要注意的是：
+     * 长度字段的结果为**无符号数**。
+     */
     private final int lengthFieldLength;
     private final int lengthFieldEndOffset;
+    /**
+     * 是一个长度调节量，当数据包的长度字段不是数据部分长度而是总长度时，可将此值设定为头部长度，便能正确解码出包含整个数据包的结果消息帧。
+     * 注意：某些情况下，该值可设定为负数。
+     */
     private final int lengthAdjustment;
+    /**
+     * 表示需要略过的字节数，如果我们只关心数据部分而不关心头部，可将此值设定为头部长度从而丢弃头部。
+     */
     private final int initialBytesToStrip;
     private final boolean failFast;
     private boolean discardingTooLongFrame;
@@ -360,6 +371,7 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
     private void discardingTooLongFrame(ByteBuf in) {
         long bytesToDiscard = this.bytesToDiscard;
         int localBytesToDiscard = (int) Math.min(bytesToDiscard, in.readableBytes());
+        // 丢弃实际的字节数
         in.skipBytes(localBytesToDiscard);
         bytesToDiscard -= localBytesToDiscard;
         this.bytesToDiscard = bytesToDiscard;
@@ -501,13 +513,16 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
             // the frame was too large.
             long tooLongFrameLength = this.tooLongFrameLength;
             this.tooLongFrameLength = 0;
+            // 由于已经丢弃所有数据，关闭丢弃模式
             discardingTooLongFrame = false;
+            // 已经丢弃了所有字节，当非快速失败模式抛异常
             if (!failFast || firstDetectionOfTooLongFrame) {
                 fail(tooLongFrameLength);
             }
         } else {
             // Keep discarding and notify handlers if necessary.
             if (failFast && firstDetectionOfTooLongFrame) {
+                // 帧长度异常，快速失败模式检测到即抛异常
                 fail(tooLongFrameLength);
             }
         }

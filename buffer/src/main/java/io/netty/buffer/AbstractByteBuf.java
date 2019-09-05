@@ -68,10 +68,15 @@ public abstract class AbstractByteBuf extends ByteBuf {
     static final ResourceLeakDetector<ByteBuf> leakDetector =
             ResourceLeakDetectorFactory.instance().newResourceLeakDetector(ByteBuf.class);
 
+    /** 读索引 **/
     int readerIndex;
+    /** 写索引 */
     int writerIndex;
+    /** 标记读索引 **/
     private int markedReaderIndex;
+    /** 标记写索引 **/
     private int markedWriterIndex;
+    /** 最大容量 */
     private int maxCapacity;
 
     protected AbstractByteBuf(int maxCapacity) {
@@ -222,18 +227,27 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
         // 只有这种情况才涉及数据的移动
         if (readerIndex != writerIndex) {
+            // 将readerIndex之后的数据移动到从0开始
             setBytes(0, this, readerIndex, writerIndex - readerIndex);
+            // 写索引减少readerIndex
             writerIndex -= readerIndex;
+            // 标记索引对应调整
             adjustMarkers(readerIndex);
+            // 读索引置0
             readerIndex = 0;
         } else {
-            // 已经读到了最后的位置
+            // 已经读到了最后的位置，读写索引相同时等同于clear操作
             adjustMarkers(readerIndex);
             writerIndex = readerIndex = 0;
         }
         return this;
     }
 
+    /**
+     * adjustMarkers()`重新调节标记索引，方法实现简单，不再进行细节分析。需要注意的是：读写索引不同时，频繁调用`discardReadBytes()`
+     * 将导致数据的频繁前移，使性能损失。由此，提供了另一个方法`discardSomeReadBytes()`，当读索引超过容量的一半时，才会进行数据前移
+     * @return
+     */
     @Override
     public ByteBuf discardSomeReadBytes() {
         ensureAccessible();
@@ -447,6 +461,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
     @Override
     public int getInt(int index) {
+        // 索引正确性检查
         checkIndex(index, 4);
         return _getInt(index);
     }
