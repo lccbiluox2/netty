@@ -48,19 +48,45 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>When not used in a {@link ServerBootstrap} context, the {@link #bind()} methods are useful for connectionless
  * transports such as datagram (UDP).</p>
+ *
+ * {@link AbstractBootstrap}是一个帮助类，它使引导{@link通道}变得很容易。它支持方法链接，以提供配置{@link AbstractBootstrap}的
+ * 简单方法。
+ *
+ * 当不在{@link ServerBootstrap}上下文中使用时，{@link #bind()}方法对于无连接传输非常有用，比如数据报(UDP).
+ *
+ * 提供了一个ChannelFactory对象用来创建Channel,一个Channel会对应一个EventLoop用于IO的事件处理，在一个Channel的整个生命周期中
+ * 只会绑定一个EventLoop,这里可理解给Channel分配一个线程进行IO事件处理，结束后回收该线程。
  */
 public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C extends Channel> implements Cloneable {
 
     /**
      * 如果是ServerBootStrap,以下都是针对NioServerSocketChannel的
      * 如果是BootStrap，对应的就是SocketChannel
+     *
+     * 这里的EventLoopGroup 作为服务端 Acceptor 线程，负责处理客户端的请求接入
+     * 作为客户端 Connector 线程，负责注册监听连接操作位，用于判断异步连接结果。
      */
     volatile EventLoopGroup group;
+    /**
+     * 创建Channer 工厂 根据传入的类型来创建不同的Channer
+     * 比如服务器传入的是：NioServerSocketChannel.class
+     * 客户端传入：NioSocketChannel.class 。 加上这个注解代表这个已经过期有更好的替代类
+     */
     @SuppressWarnings("deprecation")
     private volatile ChannelFactory<? extends C> channelFactory;
+    /**
+     * SocketAddress 是用来绑定一个服务端口 用的
+     */
     private volatile SocketAddress localAddress;
+    /**
+     * ChannelOption 可以添加Channer 添加一些配置信息
+     */
     private final Map<ChannelOption<?>, Object> options = new ConcurrentHashMap<ChannelOption<?>, Object>();
+    /** 初始化channel的属性值 */
     private final Map<AttributeKey<?>, Object> attrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
+    /**
+     * ChannelHandler 是具体怎么处理Channer 的IO事件。业务逻辑Handler，主要是HandlerInitializer，也可能是普通Handler
+     */
     private volatile ChannelHandler handler;
 
     AbstractBootstrap() {
@@ -80,22 +106,23 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * The {@link EventLoopGroup} which is used to handle all the events for the to-be-created
      * {@link Channel}
      *
-     * 处理客户端的所有的事件
+     * 处理客户端的所有的事件， 传入一个EventLoopGroup,不管服务端还是客户端都会调用该方法
      */
     public B group(EventLoopGroup group) {
         ObjectUtil.checkNotNull(group, "group");
         if (this.group != null) {
             throw new IllegalStateException("group set already");
         }
+        //  注意this.group只能设置一次, 这意味着group(group)方法只能被调用一次.
         this.group = group;
         // 强制转换成子类
         return self();
     }
 
-    @SuppressWarnings("unchecked")
     /**
-     * 返回子类对象
+     * 返回子类对象，返回对象本身
      */
+    @SuppressWarnings("unchecked")
     private B self() {
         return (B) this;
     }
@@ -105,7 +132,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.
      *
-     * 通过 channelClass 对象 创建一个 channel对象。
+     * 通过 channelClass 对象 创建一个 channel对象。设置服务端的Channel,Netty通过Channel工厂类创建不同的Channel。
+     * 对于服务端传入:Netty需要创建NioServerSocketChannel
+     * 对于客户端传入:NioSocketChannel.class
      */
     public B channel(Class<? extends C> channelClass) {
         return channelFactory(new ReflectiveChannelFactory<C>(
@@ -115,6 +144,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * @deprecated Use {@link #channelFactory(io.netty.channel.ChannelFactory)} instead.
+     * 创建好Channel后，返回对象本身
      */
     @Deprecated
     public B channelFactory(ChannelFactory<? extends C> channelFactory) {
@@ -172,6 +202,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     /**
      * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they got
      * created. Use a value of {@code null} to remove a previous set {@link ChannelOption}.
+     *
+     * 设置一些Channel相关参数
      */
     public <T> B option(ChannelOption<T> option, T value) {
         ObjectUtil.checkNotNull(option, "option");
@@ -230,6 +262,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * Create a new {@link Channel} and bind it.
+     * 服务端方法: 绑定端口 对该端口进行监听
      */
     public ChannelFuture bind() {
         validate();
@@ -249,6 +282,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * Create a new {@link Channel} and bind it.
+     * 客户端方法: 需要传入访问的地址和端口
      */
     public ChannelFuture bind(String inetHost, int inetPort) {
         return bind(SocketUtils.socketAddress(inetHost, inetPort));
@@ -266,6 +300,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      */
     public ChannelFuture bind(SocketAddress localAddress) {
         validate();
+        //这个方法这里省略调，具体可以看源码
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
@@ -302,36 +337,47 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * @return
      */
     private ChannelFuture  doBind(final SocketAddress localAddress) {
-        // 初始化并注册一个NioServerSocketChannel
+        // 初始化并注册一个NioServerSocketChannel，调用initAndRegister()方法, 先初始化channel,并注册到event loop
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
+        // 检查注册的channel是否出错
         if (regFuture.cause() != null) {
             return regFuture;
         }
 
-        // 等待注册完成
+        // 等待注册完成，检查注册操作是否完成
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
+            // 如果完成，在这个点上我们知道注册已经完成并且成功，继续bind操作, 创建一个ChannelPromise
             ChannelPromise promise = channel.newPromise();
-            // 执行channel的bind
+            // 执行channel的bind，调用doBind0()方法来继续真正的bind操作
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
             // Registration future is almost always fulfilled already, but just in case it's not.
+            // 通常这个时候注册的future应该都已经完成,但是万一没有, 我们也需要处理，为这个channel创建一个PendingRegistrationPromise
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
+            // 然后给注册的future添加一个listener, 在operationComplete()回调时
             regFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     Throwable cause = future.cause();
+                    // 检查是否出错
                     if (cause != null) {
                         // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an
                         // IllegalStateException once we try to access the EventLoop of the Channel.
+                        // 在event loop上注册失败, 因此直接让ChannelPromise失败, 避免一旦我们试图访问这个channel的eventloop
+                        // 导致IllegalStateException
                         promise.setFailure(cause);
                     } else {
                         // Registration was successful, so set the correct executor to use.
                         // See https://github.com/netty/netty/issues/2586
+                        // 注册已经成功, 因此设置正确的executor以便使用
+                        // 注: 这里已经以前有过一个bug, 有issue记录
+                        // See https://github.com/netty/netty/issues/2586
                         promise.registered();
 
+                        // 调用doBind0()方法来继续真正的bind操作
                         doBind0(regFuture, channel, localAddress, promise);
                     }
                 }
@@ -369,10 +415,14 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         // 调用MultithreadEventLoopGroup的register方法
         // 向boss EventLoopGroup中注册此channel
         ChannelFuture regFuture = config().group().register(channel);
+        // 如果注册出错
         if (regFuture.cause() != null) {
+            // 判断是否已经注册
             if (channel.isRegistered()) {
+                // channel已经注册的就关闭
                 channel.close();
             } else {
+                // 还没有注册的就强行关闭
                 channel.unsafe().closeForcibly();
             }
         }
@@ -386,24 +436,41 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         //         because bind() or connect() will be executed *after* the scheduled registration task is executed
         //         because register(), bind(), and connect() are all bound to the same thread.
 
+        // 如果代码走到这里而且promise没有失败, 那么是下面两种情况之一:
+        // 1) 如果我们尝试了从event loop中注册, 那么现在注册已经完成
+        //    现在可以安全的尝试 bind()或者connect(), 因为channel已经注册成功
+        // 2) 如果我们尝试了从另外一个线程中注册, 注册请求已经成功添加到event loop的任务队列中等待后续执行
+        //    现在可以安全的尝试 bind()或者connect():
+        //         因为 bind() 或 connect() 会在安排的注册任务之后执行
+        //         而register(), bind(), 和 connect() 都被确认是同一个线程
         return regFuture;
     }
 
     abstract void init(Channel channel) throws Exception;
 
+    /**
+     *
+     * @param regFuture
+     * @param channel
+     * @param localAddress
+     * @param promise
+     */
     private static void doBind0(
             final ChannelFuture regFuture, final Channel channel,
             final SocketAddress localAddress, final ChannelPromise promise) {
 
         // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
         // the pipeline in its channelRegistered() implementation.
+        // 这个方法在channelRegistered()方法触发前被调用.让handler有机会在它的channelRegistered()实现中构建pipeline
+        // 给channel的event loop增加一个一次性任务
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {
                 if (regFuture.isSuccess()) {
-                    // 绑定端口的方法
+                    // 绑定端口的方法, 如果成功则绑定localAddress到channel
                     channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
                 } else {
+                    // 如果不成功则设置错误到promise
                     promise.setFailure(regFuture.cause());
                 }
             }
@@ -414,6 +481,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * the {@link ChannelHandler} to use for serving the requests.
      * <p>
      * 创建默认的ChannelPipeline,用于调度和执行网络事件
+     * 设置父类的Handler,父类的handler是客户端新接入的接连SocketChannel对应的ChannelPipeline 的handler
      */
     public B handler(ChannelHandler handler) {
         // 设置的是父类AbstractBootstrap里的成员，也就是该handler是被NioServerSocketChannel使用

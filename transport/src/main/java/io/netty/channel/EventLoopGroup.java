@@ -27,7 +27,8 @@ import io.netty.util.concurrent.EventExecutorGroup;
 public interface EventLoopGroup extends EventExecutorGroup {
     /**
      * Return the next {@link EventLoop} to use
-     * 返回下一个 selection EventLoop
+     *
+     * 返回下一个 selection EventLoop，返回类型从EventExecutor变成了EventLoop
      */
     @Override
     EventLoop next();
@@ -37,6 +38,8 @@ public interface EventLoopGroup extends EventExecutorGroup {
      * will get notified once the registration was complete.
      *
      * 注册一个 Channel 到 EventLoop ，并且返回一个 ChannelFuture
+     * 将Channel注册到EventLoopGroup中的一个EventLoop.
+     * 当注册完成时,返回的ChannelFuture会得到通知.
      */
     ChannelFuture register(Channel channel);
 
@@ -54,6 +57,10 @@ public interface EventLoopGroup extends EventExecutorGroup {
      * will get notified once the registration was complete and also will get returned.
      *
      * @deprecated Use {@link #register(ChannelPromise)} instead.
+     *
+     *
+     * 将Channel注册到EventLoopGroup中的一个EventLoop,
+     * 当注册完成时ChannelPromise会得到通知, 而返回的ChannelFuture就是传入的ChannelPromise.
      */
     @Deprecated
     ChannelFuture register(Channel channel, ChannelPromise promise);

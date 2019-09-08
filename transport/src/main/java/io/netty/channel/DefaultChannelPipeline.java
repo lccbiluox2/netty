@@ -313,6 +313,14 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         ctx.prev = newCtx;
     }
 
+    /**
+     * 第一个参数被设置为 null, 我们不关心它. 第二参数就是这个 handler 的名字. 看代码可知, 在添加一个 handler 之前,
+     * 需要调用 checkDuplicateName 方法来确定此 handler 的名字是否和已添加的 handler 的名字重复. 而这个 checkDuplicateName
+     * 方法我们在前面已经有提到, 这里再回顾一下:
+     * @param name
+     * @param handler
+     * @return
+     */
     private String filterName(String name, ChannelHandler handler) {
         if (name == null) {
             return generateName(handler);
@@ -424,6 +432,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    /**
+     *  Netty 会调用 generateName 为我们的 handler 自动生成一个名字:
+     * @param handler
+     * @return
+     */
     private String generateName(ChannelHandler handler) {
         // 获得ThreadLocal变量
         Map<Class<?>, String> cache = nameCaches.get();
@@ -1129,6 +1142,13 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return voidPromise;
     }
 
+    /**
+     * 第一个参数被设置为 null, 我们不关心它. 第二参数就是这个 handler 的名字. 看代码可知, 在添加一个 handler 之前,
+     * 需要调用 checkDuplicateName 方法来确定此 handler 的名字是否和已添加的 handler 的名字重复. 而这个 checkDuplicateName
+     * 方法我们在前面已经有提到, 这里再回顾一下:
+     * @param name
+     * @return
+     */
     private void checkDuplicateName(String name) {
         if (context0(name) != null) {
             throw new IllegalArgumentException("Duplicate handler name: " + name);

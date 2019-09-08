@@ -103,6 +103,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     /**
      * 所有提交的任务都是放在这个成员变量中的, 改Executor所属的线程
+     * , 并且在其生命周期内, 绑定的线程都不会再改变.
      */
     private volatile Thread thread;
     /**

@@ -154,11 +154,13 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
      * @see #connect()
      */
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
+        // 先初始化channel并注册到event loop
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
 
         if (regFuture.isDone()) {
             if (!regFuture.isSuccess()) {
+                // 如果注册失败则退出
                 return regFuture;
             }
             return doResolveAndConnect0(channel, remoteAddress, localAddress, channel.newPromise());
@@ -193,12 +195,15 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
             final EventLoop eventLoop = channel.eventLoop();
             final AddressResolver<SocketAddress> resolver = this.resolver.getResolver(eventLoop);
 
+            // 地址解析还没有完成, 只能等待完成后在做connectio, 增加一个promise来操作
             if (!resolver.isSupported(remoteAddress) || resolver.isResolved(remoteAddress)) {
                 // Resolver has no idea about what to do with the specified remote address or it's resolved already.
+                // Resolver 不知道该怎么处理给定的远程地址, 或者已经解析
                 doConnect(remoteAddress, localAddress, promise);
                 return promise;
             }
 
+            // 开始解析远程地址
             final Future<SocketAddress> resolveFuture = resolver.resolve(remoteAddress);
 
             if (resolveFuture.isDone()) {
@@ -206,10 +211,12 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
                 if (resolveFailureCause != null) {
                     // Failed to resolve immediately
+                    // 如果地址解析失败, 则立即失败
                     channel.close();
                     promise.setFailure(resolveFailureCause);
                 } else {
                     // Succeeded to resolve immediately; cached? (or did a blocking lookup)
+                    // 理解成功的解析了远程地址, 开始做连接
                     doConnect(resolveFuture.getNow(), localAddress, promise);
                 }
                 return promise;
@@ -255,10 +262,14 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     @Override
     @SuppressWarnings("unchecked")
     void init(Channel channel) {
+        // 取channel的ChannelPipeline
         ChannelPipeline p = channel.pipeline();
+        // 增加当前Bootstrap的handle到ChannelPipeline中
         p.addLast(config.handler());
 
+        // 取当前Bootstrap设置的options, 逐个设置到channel中
         setChannelOptions(channel, options0().entrySet().toArray(newOptionArray(0)), logger);
+        // 同样取当前Bootstrap的attrs, 逐个设置到channel中
         setAttributes(channel, attrs0().entrySet().toArray(newAttrArray(0)));
     }
 

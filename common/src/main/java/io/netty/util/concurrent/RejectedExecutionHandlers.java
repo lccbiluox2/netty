@@ -47,6 +47,9 @@ public final class RejectedExecutionHandlers {
      * Tries to backoff when the task can not be added due restrictions for an configured amount of time. This
      * is only done if the task was added from outside of the event loop which means
      * {@link EventExecutor#inEventLoop()} returns {@code false}.
+     *
+     * 在配置的时间内由于限制无法添加任务时，尝试后退。只有在从事件循环外部添加任务时才会这样做，这意味着{@link EventExecutor#inEventLoop()}
+     * 返回{@code false}。
      */
     public static RejectedExecutionHandler backoff(final int retries, long backoffAmount, TimeUnit unit) {
         ObjectUtil.checkPositive(retries, "retries");

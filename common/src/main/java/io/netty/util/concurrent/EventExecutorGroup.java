@@ -34,6 +34,8 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
     /**
      * Returns {@code true} if and only if all {@link EventExecutor}s managed by this {@link EventExecutorGroup}
      * are being {@linkplain #shutdownGracefully() shut down gracefully} or was {@linkplain #isShutdown() shut down}.
+     *
+     * 当且仅当这个EventExecutorGroup管理的所有EventExecutor正在被shutdownGracefully()方法优雅关闭或被已经被关闭.
      */
     boolean isShuttingDown();
 
@@ -41,6 +43,8 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
      * Shortcut method for {@link #shutdownGracefully(long, long, TimeUnit)} with sensible default values.
      *
      * @return the {@link #terminationFuture()}
+     *
+     * 等同于以合理的默认参数调用shutdownGracefully(quietPeriod, timeout, unit)方法
      */
     Future<?> shutdownGracefully();
 
@@ -57,6 +61,14 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
      * @param unit        the unit of {@code quietPeriod} and {@code timeout}
      *
      * @return the {@link #terminationFuture()}
+     *
+     * 发信号给这个executor,告之调用者希望这个executor关闭. 一旦这个方法被调用, isShuttingDown()方法就将开始返回true,
+     * 然后这个executor准备关闭自己. 和shutdown()不同, 优雅关闭保证在关闭之前,在静默时间(the quiet period, 通常是几秒钟)
+     * 内没有任务提交. 如果在静默时间内有任务提交, 这个任务将被接受, 而静默时间将重头开始.
+     *
+     * @param quietPeriod 上面文档中描述的静默时间
+     * @param timeout     等待的最大超时时间, 直到executor被关闭, 无论在静默时间内是否有任务被提交
+     * @param unit        静默时间和超时时间的单位
      */
     Future<?> shutdownGracefully(long quietPeriod, long timeout, TimeUnit unit);
 
