@@ -21,8 +21,12 @@ import io.netty.handler.codec.MessageToMessageDecoder;
 
 import java.util.List;
 
+/**
+ * WebSocketFrame的子类会进入此类处理
+ */
 abstract class WebSocketProtocolHandler extends MessageToMessageDecoder<WebSocketFrame> {
 
+    //默认true
     private final boolean dropPongFrames;
 
     /**
@@ -45,17 +49,23 @@ abstract class WebSocketProtocolHandler extends MessageToMessageDecoder<WebSocke
 
     @Override
     protected void decode(ChannelHandlerContext ctx, WebSocketFrame frame, List<Object> out) throws Exception {
+        //如果是Ping帧
         if (frame instanceof PingWebSocketFrame) {
+            //ByteBuf引用计数器+1，因为父类会对frame.content进行释放。
             frame.content().retain();
+            //写入Pong帧，在写入完成后框架对frame.content进行释放。
             ctx.channel().writeAndFlush(new PongWebSocketFrame(frame.content()));
             readIfNeeded(ctx);
             return;
         }
+        //如果是Pong帧则不作处理
         if (frame instanceof PongWebSocketFrame && dropPongFrames) {
             readIfNeeded(ctx);
             return;
         }
 
+        //其余数据帧则先把引用计数器+1，在放入out
+        //放入out的帧会传递到我们自定义的handler处理
         out.add(frame.retain());
     }
 
@@ -65,6 +75,12 @@ abstract class WebSocketProtocolHandler extends MessageToMessageDecoder<WebSocke
         }
     }
 
+    /**
+     * 出现异常继续传递并关闭socket连接
+     * @param ctx
+     * @param cause
+     * @throws Exception
+     */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         ctx.fireExceptionCaught(cause);

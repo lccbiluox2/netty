@@ -312,6 +312,10 @@ import java.util.List;
  *        the state type which is usually an {@link Enum}; use {@link Void} if state management is
  *        unused
  *        状态类型，通常是{@link Enum};如果状态管理未使用，则使用{@link Void}
+ *
+ * ReplayingDecoder可以重复解码的解码器，此类的核心原理是内部包含了一个ReplayingDecoderByteBuf，当读取字节不够时则抛出
+ * 异常，ReplayingDecoder捕获异常还原读取readerIndex然后等待Netty下一次事件继续读取。
+ *
  */
 public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
 
@@ -387,12 +391,16 @@ public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
 
     @Override
     protected void callDecode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
+        //包装ByteBuf到内部
         replayable.setCumulation(in);
         try {
+            //如果in可读
             while (in.isReadable()) {
+                //记录in的读取下标位置
                 int oldReaderIndex = checkpoint = in.readerIndex();
                 int outSize = out.size();
 
+                //如果存在已解码的对象则fire到下一个handler
                 if (outSize > 0) {
                     fireChannelRead(ctx, out, outSize);
                     out.clear();
@@ -409,8 +417,12 @@ public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
                 }
 
                 S oldState = state;
+
+                //可读字节数量
                 int oldInputLength = in.readableBytes();
                 try {
+                    //调用解码逻辑-由子类实现
+                    //由于传入了replayable对象，在子类解码实现中读取字节不够则抛出Signal异常
                     decodeRemovalReentryProtection(ctx, replayable, out);
 
                     // Check if this handler was removed before continuing the loop.
@@ -421,7 +433,9 @@ public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
                         break;
                     }
 
+                    //outSize == out.size()说明子类解码没解析出数据
                     if (outSize == out.size()) {
+                        //oldInputLength == in.readableBytes()说明字节流有变化并且oldState == state则抛出异常
                         if (oldInputLength == in.readableBytes() && oldState == state) {
                             throw new DecoderException(
                                     StringUtil.simpleClassName(getClass()) + ".decode() must consume the inbound " +
@@ -444,8 +458,10 @@ public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
                     }
 
                     // Return to the checkpoint (or oldPosition) and retry.
+                    //如果解码时出现异常，说明in的字节不够读取
                     int checkpoint = this.checkpoint;
                     if (checkpoint >= 0) {
+                        //还原in的读取位置
                         in.readerIndex(checkpoint);
                     } else {
                         // Called by cleanup() - no need to maintain the readerIndex

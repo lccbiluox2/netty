@@ -201,6 +201,12 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 获取selector，并对其进行优化
+     * @return
+     * 参考：https://blog.csdn.net/nimasike/article/details/92798256
+     *
+     */
     private SelectorTuple openSelector() {
         final Selector unwrappedSelector;
         try {
@@ -211,10 +217,12 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
 
         // 判断这个eselector 是否需要优化，如果不需要优化直接返回
+        //是否需要优化，默认需要DISABLE_KEYSET_OPTIMIZATION=false
         if (DISABLE_KEY_SET_OPTIMIZATION) {
             return new SelectorTuple(unwrappedSelector);
         }
 
+        //尝试获取sun.nio.ch.SelectorImpl的class对象
         Object maybeSelectorImplClass = AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
@@ -229,23 +237,30 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
         });
 
+        //如果返回maybeSelectorImplClass不是一个class对象，或者maybeSelectorImplClass不是(unwrappedSelector.getClass()他的子类。
         if (!(maybeSelectorImplClass instanceof Class) ||
             // ensure the current selector implementation is what we can instrument.
             !((Class<?>) maybeSelectorImplClass).isAssignableFrom(unwrappedSelector.getClass())) {
+
+            //如果是异常说明上面方法抛出异常
             if (maybeSelectorImplClass instanceof Throwable) {
                 Throwable t = (Throwable) maybeSelectorImplClass;
                 logger.trace("failed to instrument a special java.util.Set into: {}", unwrappedSelector, t);
             }
+            //创建一个SelectorTuple，内部unwrappedSelector并没有被优化
             return new SelectorTuple(unwrappedSelector);
         }
 
+        //selector的class对象
         final Class<?> selectorImplClass = (Class<?>) maybeSelectorImplClass;
+        //内部素组结构实现的set接口
         final SelectedSelectionKeySet selectedKeySet = new SelectedSelectionKeySet();
 
         Object maybeException = AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
                 try {
+                    //反射获取属性
                     Field selectedKeysField = selectorImplClass.getDeclaredField("selectedKeys");
                     Field publicSelectedKeysField = selectorImplClass.getDeclaredField("publicSelectedKeys");
 
@@ -266,15 +281,18 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         // We could not retrieve the offset, lets try reflection as last-resort.
                     }
 
+                    //设置属性可访问
                     Throwable cause = ReflectionUtil.trySetAccessible(selectedKeysField, true);
                     if (cause != null) {
                         return cause;
                     }
+                    //设置属性可访问
                     cause = ReflectionUtil.trySetAccessible(publicSelectedKeysField, true);
                     if (cause != null) {
                         return cause;
                     }
 
+                    //把原来属性设置为selectedKeySet（它是素组实现)，原来是hashmap实现
                     selectedKeysField.set(unwrappedSelector, selectedKeySet);
                     publicSelectedKeysField.set(unwrappedSelector, selectedKeySet);
                     return null;
@@ -286,14 +304,21 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
         });
 
+        //如果返回结果是异常信息
         if (maybeException instanceof Exception) {
             selectedKeys = null;
             Exception e = (Exception) maybeException;
             logger.trace("failed to instrument a special java.util.Set into: {}", unwrappedSelector, e);
+            //返回SelectorTuple，内部unwrappedSelector并没有被优化
             return new SelectorTuple(unwrappedSelector);
         }
+
+        //赋值
         selectedKeys = selectedKeySet;
         logger.trace("instrumented a special java.util.Set into: {}", unwrappedSelector);
+
+        //unwrappedSelector内部的selectedKeys和publicSelectedKeys俩个数据结构已用素组优化
+        //SelectedSelectionKeySetSelector包装了unwrappedSelector和selectedKeySet
         return new SelectorTuple(unwrappedSelector,
                                  new SelectedSelectionKeySetSelector(unwrappedSelector, selectedKeySet));
     }

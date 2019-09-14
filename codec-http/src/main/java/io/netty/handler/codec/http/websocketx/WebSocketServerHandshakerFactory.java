@@ -141,7 +141,7 @@ public class WebSocketServerHandshakerFactory {
     public WebSocketServerHandshaker newHandshaker(HttpRequest req) {
 
         // 根据升级协议，获取http请求头sec-websocket-version获取客户端支持版本
-        // 根据版本创建不同版本握手对象
+        // WebSocketServerHandshakerFactory根据版本创建不同版本握手对象
         CharSequence version = req.headers().get(HttpHeaderNames.SEC_WEBSOCKET_VERSION);
         if (version != null) {
             if (version.equals(WebSocketVersion.V13.toHttpHeaderValue())) {

@@ -225,15 +225,22 @@ public abstract class AbstractByteBuf extends ByteBuf {
             return this;
         }
 
-        // 只有这种情况才涉及数据的移动
+        // 如果只是读了一部分，还没读完，则丢弃已经读取部分，只有这种情况才涉及数据的移动
         if (readerIndex != writerIndex) {
             // 将readerIndex之后的数据移动到从0开始
+            //0 1 2 3 4 5 6 7 8
+            //    r   w
+            //r =2  w = 0
+            //将0和1丢弃，充值r，w下标位置
+            //2 3 4 5 6 7 8 0 0
+            //r   w
+            //r = 0 w = 2
             setBytes(0, this, readerIndex, writerIndex - readerIndex);
             // 写索引减少readerIndex
             writerIndex -= readerIndex;
-            // 标记索引对应调整
+            // 标记索引对应调整，修正markedReaderIndex和markedWriterIndex
             adjustMarkers(readerIndex);
-            // 读索引置0
+            // 读索引置0，//如果已经全部读完，则丢弃所有，r，w下标归0
             readerIndex = 0;
         } else {
             // 已经读到了最后的位置，读写索引相同时等同于clear操作
@@ -261,6 +268,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
             return this;
         }
 
+        // 跟之前逻辑唯一区别就是如果readerIndex >= capacity/2就丢弃， >>>1 除2的意思
         if (readerIndex >= capacity() >>> 1) {
             setBytes(0, this, readerIndex, writerIndex - readerIndex);
             writerIndex -= readerIndex;
@@ -270,18 +278,29 @@ public abstract class AbstractByteBuf extends ByteBuf {
         return this;
     }
 
+    /**
+     * 调整标记位下标
+     * @param decrement
+     */
     protected final void adjustMarkers(int decrement) {
         int markedReaderIndex = this.markedReaderIndex;
+        //如果标记值小于丢弃的值，说明标记位置之前的字节已经被丢弃了。
         if (markedReaderIndex <= decrement) {
+            //所以要把标记为设置为0
             this.markedReaderIndex = 0;
             int markedWriterIndex = this.markedWriterIndex;
+            //写入标记位如果小于丢弃的字节长度，说明写入标记为之前的字节已经被丢弃
             if (markedWriterIndex <= decrement) {
+                //那么写入标记为旧没有意义了，需要设置为0
                 this.markedWriterIndex = 0;
             } else {
+                //否则写入标记为往前移动
                 this.markedWriterIndex = markedWriterIndex - decrement;
             }
         } else {
+            //读取标记为往前移动
             this.markedReaderIndex = markedReaderIndex - decrement;
+            //写入标记为往前移动,因为读取标记为大于decrement，那么写入标记为一定大于decrement
             markedWriterIndex -= decrement;
         }
     }
@@ -300,11 +319,17 @@ public abstract class AbstractByteBuf extends ByteBuf {
         return this;
     }
 
+    /**
+     * 扩容
+     * @param minWritableBytes
+     */
     final void ensureWritable0(int minWritableBytes) {
         ensureAccessible();
+        //传入的大小 如果小于 capacity() - writerIndex; 则没问题
         if (minWritableBytes <= writableBytes()) {
             return;
         }
+        //如果超过最大容量则抛异常
         final int writerIndex = writerIndex();
         if (checkBounds) {
             if (minWritableBytes > maxCapacity - writerIndex) {
@@ -316,6 +341,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
         // Normalize the current capacity to the power of 2.
         int minNewCapacity = writerIndex + minWritableBytes;
+        //新的容量，扩大2倍，但是不超过maxCapacity
         int newCapacity = alloc().calculateNewCapacity(minNewCapacity, maxCapacity);
 
         int fastCapacity = writerIndex + maxFastWritableBytes();
@@ -325,6 +351,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
         }
 
         // Adjust to the new capacity.
+        //调整容量
         capacity(newCapacity);
     }
 
@@ -333,21 +360,27 @@ public abstract class AbstractByteBuf extends ByteBuf {
         ensureAccessible();
         checkPositiveOrZero(minWritableBytes, "minWritableBytes");
 
+        //有足够容量，底层没扩容
         if (minWritableBytes <= writableBytes()) {
             return 0;
         }
 
         final int maxCapacity = maxCapacity();
         final int writerIndex = writerIndex();
+
+        //超过最大容量
         if (minWritableBytes > maxCapacity - writerIndex) {
             if (!force || capacity() == maxCapacity) {
+                //容量不够，底层没扩容
                 return 1;
             }
 
+            //容量不够，底层扩容
             capacity(maxCapacity);
             return 3;
         }
 
+        //容量够，底层扩容
         // Normalize the current capacity to the power of 2.
         int minNewCapacity = writerIndex + minWritableBytes;
         int newCapacity = alloc().calculateNewCapacity(minNewCapacity, maxCapacity);
@@ -363,6 +396,11 @@ public abstract class AbstractByteBuf extends ByteBuf {
         return 2;
     }
 
+    /**
+     * 返回大端序或小端序的实例
+     * @param endianness
+     * @return
+     */
     @Override
     public ByteBuf order(ByteOrder endianness) {
         if (endianness == order()) {
@@ -376,11 +414,18 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
     /**
      * Creates a new {@link SwappedByteBuf} for this {@link ByteBuf} instance.
+     *
+     * 创建一个与当前对象翻转的对象,转换字节序列
      */
     protected SwappedByteBuf newSwappedByteBuf() {
         return new SwappedByteBuf(this);
     }
 
+    /**
+     * 从底层数组index位置开始拷贝字节到dst
+     * @param index
+     * @return
+     */
     @Override
     public byte getByte(int index) {
         checkIndex(index);

@@ -110,7 +110,9 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
 
     private static final long DEFAULT_HANDSHAKE_TIMEOUT_MS = 10000L;
 
+    //websocket的path
     private final String websocketPath;
+    //子协议
     private final String subprotocols;
     private final boolean checkStartsWith;
     private final long handshakeTimeoutMillis;
@@ -221,17 +223,29 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
         this.decoderConfig = checkNotNull(decoderConfig, "decoderConfig");
     }
 
+    /**
+     * 在channel连接成功后会回调次方法，插入websocket握手用处理器
+     * @param ctx
+     */
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
         ChannelPipeline cp = ctx.pipeline();
+        //如果没有握手处理器
         if (cp.get(WebSocketServerProtocolHandshakeHandler.class) == null) {
             // Add the WebSocketHandshakeHandler before this one.
+            //插入握手处理器到当前处理器的前面
+            //pipeline.addLast("http-codec", new HttpServerCodec());
+            //pipeline.addLast("aggregator", new HttpObjectAggregator(655360));
+            //pipeline.addLast("http-chunked", new ChunkedWriteHandler());
+            //插入位置，顺序非常重要，必须插在http编解码器的后面，必须插在当前处理器的前面
+            // pipeline.addLast("webSocketHandler", new WebSocketServerProtocolHandler("/websocket"));
             cp.addBefore(ctx.name(), WebSocketServerProtocolHandshakeHandler.class.getName(),
                     new WebSocketServerProtocolHandshakeHandler(
                         websocketPath, subprotocols, checkStartsWith, handshakeTimeoutMillis, decoderConfig));
         }
         if (decoderConfig.withUTF8Validator() && cp.get(Utf8FrameValidator.class) == null) {
             // Add the UFT8 checking before this one.
+            //插入在当前处理器的前面
             cp.addBefore(ctx.name(), Utf8FrameValidator.class.getName(),
                     new Utf8FrameValidator());
         }
@@ -239,21 +253,27 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
 
     @Override
     protected void decode(ChannelHandlerContext ctx, WebSocketFrame frame, List<Object> out) throws Exception {
+        //如果是close帧
         if (frame instanceof CloseWebSocketFrame) {
+            //获取channel中关联的握手器去关闭当前channel
             WebSocketServerHandshaker handshaker = getHandshaker(ctx.channel());
             if (handshaker != null) {
+                //因为计数器需要+1，因为传入到close方法中会调用channel.write方法进行输出，底层会再次释放
                 frame.retain();
                 handshaker.close(ctx.channel(), (CloseWebSocketFrame) frame);
             } else {
+                //没有握手器输出空字节后关闭底层socket
                 ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
             }
             return;
         }
+        //调用父类，父类处理了ping-pong 二帧。
         super.decode(ctx, frame, out);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        //如果是websocket相关异常则返回http响应后关闭底层流
         if (cause instanceof WebSocketHandshakeException) {
             FullHttpResponse response = new DefaultFullHttpResponse(
                     HTTP_1_1, HttpResponseStatus.BAD_REQUEST, Unpooled.wrappedBuffer(cause.getMessage().getBytes()));
@@ -264,10 +284,20 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
         }
     }
 
+    /**
+     * 从channel获取关联的握手器
+     * @param channel
+     * @return
+     */
     static WebSocketServerHandshaker getHandshaker(Channel channel) {
         return channel.attr(HANDSHAKER_ATTR_KEY).get();
     }
 
+    /**
+     * 握手器绑定到channe
+     * @param channel
+     * @param handshaker
+     */
     static void setHandshaker(Channel channel, WebSocketServerHandshaker handshaker) {
         channel.attr(HANDSHAKER_ATTR_KEY).set(handshaker);
     }
@@ -276,12 +306,14 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
         return new ChannelInboundHandlerAdapter() {
             @Override
             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                //返回拒绝的http响应
                 if (msg instanceof FullHttpRequest) {
                     ((FullHttpRequest) msg).release();
                     FullHttpResponse response =
                             new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.FORBIDDEN, ctx.alloc().buffer(0));
                     ctx.channel().writeAndFlush(response);
                 } else {
+                    //向下传播
                     ctx.fireChannelRead(msg);
                 }
             }

@@ -164,6 +164,8 @@ public abstract class WebSocketServerHandshaker {
      *              HTTP Request
      * @return future
      *              The {@link ChannelFuture} which is notified once the opening handshake completes
+     *
+     * 握手过程
      */
     public ChannelFuture handshake(Channel channel, FullHttpRequest req) {
         return handshake(channel, req, null, channel.newPromise());
@@ -191,14 +193,19 @@ public abstract class WebSocketServerHandshaker {
         if (logger.isDebugEnabled()) {
             logger.debug("{} WebSocket version {} server handshake", channel, version());
         }
+        //子类根据版本实现握手响应
         FullHttpResponse response = newHandshakeResponse(req, responseHeaders);
+        //获取pipeline
         ChannelPipeline p = channel.pipeline();
+
+        //ws握手完成后就当前channel就不需要处理htto请求了，所以需要移除http的handler
         if (p.get(HttpObjectAggregator.class) != null) {
             p.remove(HttpObjectAggregator.class);
         }
         if (p.get(HttpContentCompressor.class) != null) {
             p.remove(HttpContentCompressor.class);
         }
+        //实际会走这里
         ChannelHandlerContext ctx = p.context(HttpRequestDecoder.class);
         final String encoderName;
         if (ctx == null) {
@@ -209,8 +216,10 @@ public abstract class WebSocketServerHandshaker {
                         new IllegalStateException("No HttpDecoder and no HttpServerCodec in the pipeline"));
                 return promise;
             }
+            //加入ws解码器和编码器
             p.addBefore(ctx.name(), "wsencoder", newWebSocketEncoder());
             p.addBefore(ctx.name(), "wsdecoder", newWebsocketDecoder());
+            //记录HttpServerCodec的名字
             encoderName = ctx.name();
         } else {
             p.replace(ctx.name(), "wsdecoder", newWebsocketDecoder());
@@ -218,14 +227,18 @@ public abstract class WebSocketServerHandshaker {
             encoderName = p.context(HttpResponseEncoder.class).name();
             p.addBefore(encoderName, "wsencoder", newWebSocketEncoder());
         }
+        //写入握手响应response
         channel.writeAndFlush(response).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (future.isSuccess()) {
+                    //成功后删除当前channel的HttpServerCodec编解码器
                     ChannelPipeline p = future.channel().pipeline();
                     p.remove(encoderName);
+                    //设置成功状态
                     promise.setSuccess();
                 } else {
+                    //设置失败状态
                     promise.setFailure(future.cause());
                 }
             }
@@ -325,6 +338,8 @@ public abstract class WebSocketServerHandshaker {
 
     /**
      * Returns a new {@link FullHttpResponse) which will be used for as response to the handshake request.
+     *
+     * //子类根据ws版本构建握手响应对象
      */
     protected abstract FullHttpResponse newHandshakeResponse(FullHttpRequest req,
                                          HttpHeaders responseHeaders);
@@ -401,11 +416,15 @@ public abstract class WebSocketServerHandshaker {
 
     /**
      * Returns the decoder to use after handshake is complete.
+     *
+     * //子类根据ws版本创建解码器
      */
     protected abstract WebSocketFrameDecoder newWebsocketDecoder();
 
     /**
      * Returns the encoder to use after the handshake is complete.
+     *
+     * //子类根据ws版本创建编码器
      */
     protected abstract WebSocketFrameEncoder newWebSocketEncoder();
 

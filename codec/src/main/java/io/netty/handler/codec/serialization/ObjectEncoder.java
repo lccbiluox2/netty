@@ -35,16 +35,23 @@ import java.io.Serializable;
  */
 @Sharable
 public class ObjectEncoder extends MessageToByteEncoder<Serializable> {
+    /**
+     * 使用4个字节表示流的长度
+     */
     private static final byte[] LENGTH_PLACEHOLDER = new byte[4];
 
     @Override
     protected void encode(ChannelHandlerContext ctx, Serializable msg, ByteBuf out) throws Exception {
+        //获取写入下标
         int startIdx = out.writerIndex();
 
+        //封装输出流
         ByteBufOutputStream bout = new ByteBufOutputStream(out);
         ObjectOutputStream oout = null;
         try {
+            //写入4个空字节
             bout.write(LENGTH_PLACEHOLDER);
+            //序列化对象到底层输出流
             oout = new CompactObjectOutputStream(bout);
             oout.writeObject(msg);
             oout.flush();
@@ -56,8 +63,10 @@ public class ObjectEncoder extends MessageToByteEncoder<Serializable> {
             }
         }
 
+        //获取写入数据后的写入下标
         int endIdx = out.writerIndex();
 
+        //在流的起始位置，写入流的长度endIdx - startIdx - 4
         out.setInt(startIdx, endIdx - startIdx - 4);
     }
 }

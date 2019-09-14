@@ -32,6 +32,9 @@ import java.io.StreamCorruptedException;
  * compatible with the standard {@link ObjectOutputStream}.  Please use
  * {@link ObjectEncoder} or {@link ObjectEncoderOutputStream} to ensure the
  * interoperability with this decoder.
+ *
+ * 继承LengthFieldBasedFrameDecoder
+ * 0, 4, 0, 4  长度字段为4个字节  读取消息后跳过4个字节
  */
 public class ObjectDecoder extends LengthFieldBasedFrameDecoder {
 
@@ -66,11 +69,13 @@ public class ObjectDecoder extends LengthFieldBasedFrameDecoder {
 
     @Override
     protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+        //调用父类解码器-如果拿到frame则为一个完整对象流
         ByteBuf frame = (ByteBuf) super.decode(ctx, in);
         if (frame == null) {
             return null;
         }
 
+        //直接返序列化
         ObjectInputStream ois = new CompactObjectInputStream(new ByteBufInputStream(frame, true), classResolver);
         try {
             return ois.readObject();

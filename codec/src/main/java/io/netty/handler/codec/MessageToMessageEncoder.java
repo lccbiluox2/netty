@@ -82,15 +82,19 @@ public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerA
         CodecOutputList out = null;
         try {
             if (acceptOutboundMessage(msg)) {
+                //创建一个list
                 out = CodecOutputList.newInstance();
                 @SuppressWarnings("unchecked")
                 I cast = (I) msg;
                 try {
+                    //子类去重写改方法,讲msg对象进行处理存储到out中
                     encode(ctx, cast, out);
                 } finally {
+                    //释放资源
                     ReferenceCountUtil.release(cast);
                 }
 
+                //没有返回任何对象
                 if (out.isEmpty()) {
                     out.recycle();
                     out = null;
@@ -109,6 +113,7 @@ public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerA
             if (out != null) {
                 final int sizeMinusOne = out.size() - 1;
                 if (sizeMinusOne == 0) {
+                    //将out中的对象取出写入ctx
                     ctx.write(out.getUnsafe(0), promise);
                 } else if (sizeMinusOne > 0) {
                     // Check if we can use a voidPromise for our extra writes to reduce GC-Pressure

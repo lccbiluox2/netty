@@ -134,11 +134,15 @@ public class WebSocketServerHandshaker13 extends WebSocketServerHandshaker {
      */
     @Override
     protected FullHttpResponse newHandshakeResponse(FullHttpRequest req, HttpHeaders headers) {
+        //Sec-WebSocket-Accept根据客户端请求首部的Sec-WebSocket-Key计算出来
+        //将Sec-WebSocket-Key跟258EAFA5-E914-47DA-95CA-C5AB0DC85B11拼接。
+        //通过SHA1计算出摘要，并转成base64字符串。
         CharSequence key = req.headers().get(HttpHeaderNames.SEC_WEBSOCKET_KEY);
         if (key == null) {
             throw new WebSocketHandshakeException("not a WebSocket request: missing key");
         }
 
+        //创建Respinse对象，设置响应状态101
         FullHttpResponse res = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.SWITCHING_PROTOCOLS,
                 req.content().alloc().buffer(0));
         if (headers != null) {
@@ -153,10 +157,12 @@ public class WebSocketServerHandshaker13 extends WebSocketServerHandshaker {
             logger.debug("WebSocket version 13 server handshake key: {}, response: {}", key, accept);
         }
 
+        //加入WS握手响应需要的HTTP头
         res.headers().add(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET);
         res.headers().add(HttpHeaderNames.CONNECTION, HttpHeaderValues.UPGRADE);
         res.headers().add(HttpHeaderNames.SEC_WEBSOCKET_ACCEPT, accept);
 
+        //选择服务器端支持的版本
         String subprotocols = req.headers().get(HttpHeaderNames.SEC_WEBSOCKET_PROTOCOL);
         if (subprotocols != null) {
             String selectedSubprotocol = selectSubprotocol(subprotocols);
@@ -171,11 +177,19 @@ public class WebSocketServerHandshaker13 extends WebSocketServerHandshaker {
         return res;
     }
 
+    /**
+     * //创建编码器
+     * @return
+     */
     @Override
     protected WebSocketFrameDecoder newWebsocketDecoder() {
         return new WebSocket13FrameDecoder(decoderConfig());
     }
 
+    /**
+     * //创建解码器
+     * @return
+     */
     @Override
     protected WebSocketFrameEncoder newWebSocketEncoder() {
         return new WebSocket13FrameEncoder(false);
