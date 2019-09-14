@@ -33,8 +33,14 @@ import io.netty.util.internal.ObjectUtil;
  */
 public class WebSocketServerHandshakerFactory {
 
+    /**
+     * WebSocket地址
+     */
     private final String webSocketURL;
 
+    /**
+     * 子协议
+     */
     private final String subprotocols;
 
     private final WebSocketDecoderConfig decoderConfig;
@@ -49,6 +55,9 @@ public class WebSocketServerHandshakerFactory {
      *            CSV of supported protocols. Null if sub protocols not supported.
      * @param allowExtensions
      *            Allow extensions to be used in the reserved bits of the web socket frame
+     *            是否允许扩展协议
+     *
+     *
      */
     public WebSocketServerHandshakerFactory(
             String webSocketURL, String subprotocols, boolean allowExtensions) {
@@ -68,6 +77,7 @@ public class WebSocketServerHandshakerFactory {
      * @param maxFramePayloadLength
      *            Maximum allowable frame payload length. Setting this value to your application's
      *            requirement may reduce denial of service attacks using long data frames.
+     *            荷载数据最大长度(字节)
      */
     public WebSocketServerHandshakerFactory(
             String webSocketURL, String subprotocols, boolean allowExtensions,
@@ -91,6 +101,7 @@ public class WebSocketServerHandshakerFactory {
      * @param allowMaskMismatch
      *            When set to true, frames which are not masked properly according to the standard will still be
      *            accepted.
+     *            是否允许缺失掩码
      */
     public WebSocketServerHandshakerFactory(
             String webSocketURL, String subprotocols, boolean allowExtensions,
@@ -125,9 +136,12 @@ public class WebSocketServerHandshakerFactory {
      *
      * @return A new WebSocketServerHandshaker for the requested web socket version. Null if web
      *         socket version is not supported.
+     * 获取WS握手对象
      */
     public WebSocketServerHandshaker newHandshaker(HttpRequest req) {
 
+        // 根据升级协议，获取http请求头sec-websocket-version获取客户端支持版本
+        // 根据版本创建不同版本握手对象
         CharSequence version = req.headers().get(HttpHeaderNames.SEC_WEBSOCKET_VERSION);
         if (version != null) {
             if (version.equals(WebSocketVersion.V13.toHttpHeaderValue())) {

@@ -370,21 +370,36 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 
     private void discardingTooLongFrame(ByteBuf in) {
         long bytesToDiscard = this.bytesToDiscard;
+        //取最小值
         int localBytesToDiscard = (int) Math.min(bytesToDiscard, in.readableBytes());
-        // 丢弃实际的字节数
+        // 丢弃实际的字节数 ，调过需要丢弃的字节
         in.skipBytes(localBytesToDiscard);
+        //减掉丢弃的字节
         bytesToDiscard -= localBytesToDiscard;
+        //重新复制
         this.bytesToDiscard = bytesToDiscard;
 
         failIfNecessary(false);
     }
 
+    /**
+     * 跳过frameLength个字节，抛出异常
+     * @param in
+     * @param frameLength
+     * @param lengthFieldEndOffset
+     */
     private static void failOnNegativeLengthField(ByteBuf in, long frameLength, int lengthFieldEndOffset) {
         in.skipBytes(lengthFieldEndOffset);
         throw new CorruptedFrameException(
            "negative pre-adjustment length field: " + frameLength);
     }
 
+    /**
+     * 跳过frameLength个字节，抛出异常
+     * @param in
+     * @param frameLength
+     * @param lengthFieldEndOffset
+     */
     private static void failOnFrameLengthLessThanLengthFieldEndOffset(ByteBuf in,
                                                                       long frameLength,
                                                                       int lengthFieldEndOffset) {
@@ -410,6 +425,12 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
         failIfNecessary(true);
     }
 
+    /**
+     * 跳过frameLength个字节，抛出异常
+     * @param in
+     * @param frameLength
+     * @param initialBytesToStrip
+     */
     private static void failOnFrameLengthLessThanInitialBytesToStrip(ByteBuf in,
                                                                      long frameLength,
                                                                      int initialBytesToStrip) {
@@ -432,43 +453,72 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
             discardingTooLongFrame(in);
         }
 
+        //如果可读字节小于长度字段的标识位，则返回空
+        //也就是可读字节还没有包含长度字段
         if (in.readableBytes() < lengthFieldEndOffset) {
             return null;
         }
 
+        //长度字段的位置
         int actualLengthFieldOffset = in.readerIndex() + lengthFieldOffset;
+        //获取长度值
         long frameLength = getUnadjustedFrameLength(in, actualLengthFieldOffset, lengthFieldLength, byteOrder);
 
+        //长度值为负数-抛出异常
         if (frameLength < 0) {
             failOnNegativeLengthField(in, frameLength, lengthFieldEndOffset);
         }
 
+        //假设：
+        //HDR1 | Length | HDR2 | Actual Content
+        //0xCA | 0x000C | 0xFE | "HELLO, WORLD"
+        //lengthFieldOffset   = 1 (= the length of HDR1)
+        //lengthFieldLength   = 2
+        //lengthAdjustment    = 1 (= the length of HDR2)
+        //initialBytesToStrip = 3 (= the length of HDR1 + LEN)
+        //那么：frameLength=16，也就是一个完成消息的长度
+        //lengthFieldEndOffset=3   ，  lengthAdjustment = 1    , frameLength=  12
+
+        //这里计算一个完成消息的长度
         frameLength += lengthAdjustment + lengthFieldEndOffset;
 
+        //如果消息的长度 小于  （lengthFieldOffset+lengthFieldLength）则抛出异常
         if (frameLength < lengthFieldEndOffset) {
             failOnFrameLengthLessThanLengthFieldEndOffset(in, frameLength, lengthFieldEndOffset);
         }
 
+        //如果消息长度 超过定义的阈值
         if (frameLength > maxFrameLength) {
             exceededFrameLength(in, frameLength);
             return null;
         }
 
         // never overflows because it's less than maxFrameLength
+        //直接类型转换-不会溢出，因为小于int类型的maxFrameLength
         int frameLengthInt = (int) frameLength;
+
+        //如果缓冲区可读字节 小于 一个消息长度则返回null，等待缓冲区继续接受TCP字节
         if (in.readableBytes() < frameLengthInt) {
             return null;
         }
 
+        //如果丢弃字节大于 消息长度 则错误处理
         if (initialBytesToStrip > frameLengthInt) {
             failOnFrameLengthLessThanInitialBytesToStrip(in, frameLength, initialBytesToStrip);
         }
+        //跳过定义的字节
         in.skipBytes(initialBytesToStrip);
 
         // extract frame
+        //可读位置
         int readerIndex = in.readerIndex();
+        //完整消息长度-跳过的字节=实习要读取的字节长度
         int actualFrameLength = frameLengthInt - initialBytesToStrip;
+
+        ///返回子缓冲区，包含一个完整消息，并增加引用计数
         ByteBuf frame = extractFrame(ctx, in, readerIndex, actualFrameLength);
+
+        //设置新的读坐标
         in.readerIndex(readerIndex + actualFrameLength);
         return frame;
     }
@@ -480,24 +530,34 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
      * buffer (e.g. {@code readerIndex}, {@code writerIndex}, and the content of the buffer.)
      *
      * @throws DecoderException if failed to decode the specified region
+     *
+     * 获取长度信息
+     * offset=长度标识位的起始位置
+     * length=长度标识位占用字节
      */
     protected long getUnadjustedFrameLength(ByteBuf buf, int offset, int length, ByteOrder order) {
         buf = buf.order(order);
         long frameLength;
+        //根据offset起始位置，读取Length长度的字节，转换为无符号十进制
         switch (length) {
         case 1:
+            //读1个字节
             frameLength = buf.getUnsignedByte(offset);
             break;
         case 2:
+            //读2个字节
             frameLength = buf.getUnsignedShort(offset);
             break;
         case 3:
+            //读3个字节
             frameLength = buf.getUnsignedMedium(offset);
             break;
         case 4:
+            //读4个字节
             frameLength = buf.getUnsignedInt(offset);
             break;
         case 8:
+            //读8个字节
             frameLength = buf.getLong(offset);
             break;
         default:
@@ -538,6 +598,8 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
      * It's often useful when you convert the extracted frame into an object.
      * Refer to the source code of {@link ObjectDecoder} to see how this method
      * is overridden to avoid memory copy.
+     *
+     * 返回子缓冲区，包含一个完整消息，并增加引用计数
      */
     protected ByteBuf extractFrame(ChannelHandlerContext ctx, ByteBuf buffer, int index, int length) {
         return buffer.retainedSlice(index, length);

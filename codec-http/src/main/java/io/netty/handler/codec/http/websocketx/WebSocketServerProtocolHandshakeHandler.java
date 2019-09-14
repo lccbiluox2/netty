@@ -70,22 +70,27 @@ class WebSocketServerProtocolHandshakeHandler extends ChannelInboundHandlerAdapt
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
         final FullHttpRequest req = (FullHttpRequest) msg;
+        //如果HTTP请求路径不是websocketPath，则向下传递msg
         if (isNotWebSocketPath(req)) {
             ctx.fireChannelRead(msg);
             return;
         }
 
         try {
+            //如果不是get请求返回403响应
             if (!GET.equals(req.method())) {
                 sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, FORBIDDEN, ctx.alloc().buffer(0)));
                 return;
             }
 
+            //创建握手工厂
             final WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(
                     getWebSocketLocation(ctx.pipeline(), req, websocketPath), subprotocols, decoderConfig);
+            //根据不同的req返回不同版本的握手器
             final WebSocketServerHandshaker handshaker = wsFactory.newHandshaker(req);
             final ChannelPromise localHandshakePromise = handshakePromise;
             if (handshaker == null) {
+                //当前服务器不支持客户端ws的协议版本
                 WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
             } else {
                 // Ensure we set the handshaker and replace this handler before we
@@ -93,18 +98,26 @@ class WebSocketServerProtocolHandshakeHandler extends ChannelInboundHandlerAdapt
                 // before we had a chance to replace it.
                 //
                 // See https://github.com/netty/netty/issues/9471.
+                //channel和握手器关联
                 WebSocketServerProtocolHandler.setHandshaker(ctx.channel(), handshaker);
+                //替换当前编解码器为forbiddenHttpRequestResponder
+                //握手后如果再收到http请求则直接拒绝
                 ctx.pipeline().replace(this, "WS403Responder",
                         WebSocketServerProtocolHandler.forbiddenHttpRequestResponder());
 
+
                 final ChannelFuture handshakeFuture = handshaker.handshake(ctx.channel(), req);
+                //握手完成后事件
                 handshakeFuture.addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
+                        //失败抛出异常
                         if (!future.isSuccess()) {
                             localHandshakePromise.tryFailure(future.cause());
                             ctx.fireExceptionCaught(future.cause());
                         } else {
+                            //成功激发事件
+                            //这里要注意，接收事件的handler必须放在此类的后面，否则需要修改此类代码为ctx.channel.fireUserEventTriggered
                             localHandshakePromise.trySuccess();
                             // Kept for compatibility
                             ctx.fireUserEventTriggered(
@@ -122,17 +135,21 @@ class WebSocketServerProtocolHandshakeHandler extends ChannelInboundHandlerAdapt
         }
     }
 
+    // 判断http请求路径是否为websocketPath
     private boolean isNotWebSocketPath(FullHttpRequest req) {
         return checkStartsWith ? !req.uri().startsWith(websocketPath) : !req.uri().equals(websocketPath);
     }
 
+    //返回http的输出
     private static void sendHttpResponse(ChannelHandlerContext ctx, HttpRequest req, HttpResponse res) {
         ChannelFuture f = ctx.channel().writeAndFlush(res);
+        //不是长连接关闭底层tcp
         if (!isKeepAlive(req) || res.status().code() != 200) {
             f.addListener(ChannelFutureListener.CLOSE);
         }
     }
 
+    //获取ws的location
     private static String getWebSocketLocation(ChannelPipeline cp, HttpRequest req, String path) {
         String protocol = "ws";
         if (cp.get(SslHandler.class) != null) {

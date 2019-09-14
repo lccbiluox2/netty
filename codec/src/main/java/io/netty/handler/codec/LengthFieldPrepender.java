@@ -34,13 +34,13 @@ import java.util.List;
  * following 12-bytes string:
  * <pre>
  * +----------------+
- * | "HELLO, WORLD" |
+ * | "HELLO, WORLD" |       原始消息长度12个字节
  * +----------------+
  * </pre>
  * into the following:
  * <pre>
  * +--------+----------------+
- * + 0x000C | "HELLO, WORLD" |
+ * + 0x000C | "HELLO, WORLD" |      实际发送消息前面加了长度(0x000C为16进制，转换为10进制为12)
  * +--------+----------------+
  * </pre>
  * If you turned on the {@code lengthIncludesLengthFieldLength} flag in the
@@ -48,16 +48,30 @@ import java.util.List;
  * (12 (original data) + 2 (prepended data) = 14 (0xE)):
  * <pre>
  * +--------+----------------+
- * + 0x000E | "HELLO, WORLD" |
+ * + 0x000E | "HELLO, WORLD" |    如果lengthIncludesLengthFieldLength=true,则长度为14，多加了2个字节
  * +--------+----------------+
  * </pre>
+ *
+ * 参考：https://blog.csdn.net/nimasike/article/details/87793027
  */
 @Sharable
 public class LengthFieldPrepender extends MessageToMessageEncoder<ByteBuf> {
 
+    /**
+     * 字节序
+     */
     private final ByteOrder byteOrder;
+    /**
+     * 标识长度字段的字节数
+     */
     private final int lengthFieldLength;
+    /**
+     * 内容长度是否包含lengthFieldLength
+     */
     private final boolean lengthIncludesLengthFieldLength;
+    /**
+     * 偏移量
+     */
     private final int lengthAdjustment;
 
     /**
@@ -143,6 +157,10 @@ public class LengthFieldPrepender extends MessageToMessageEncoder<ByteBuf> {
     public LengthFieldPrepender(
             ByteOrder byteOrder, int lengthFieldLength,
             int lengthAdjustment, boolean lengthIncludesLengthFieldLength) {
+        //表示长度的字节数只能为 1,2,3,4,8
+        //lengthFieldLength=1  用1个字节表示长度 最大长度255
+        //lengthFieldLength=2  用2个字节表示长度 最大长度65535
+        //以此类推.....
         if (lengthFieldLength != 1 && lengthFieldLength != 2 &&
             lengthFieldLength != 3 && lengthFieldLength != 4 &&
             lengthFieldLength != 8) {
@@ -160,13 +178,18 @@ public class LengthFieldPrepender extends MessageToMessageEncoder<ByteBuf> {
 
     @Override
     protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
+        //消息中的内容长度+偏移量
         int length = msg.readableBytes() + lengthAdjustment;
         if (lengthIncludesLengthFieldLength) {
+            //如果lengthIncludesLengthFieldLength=true 则在加上表示长度的字节数
             length += lengthFieldLength;
         }
 
+        //逻辑检查
         checkPositiveOrZero(length, "length");
 
+        //根据lengthFieldLength创建ByteBuf
+        //然后将计算后的长度大小写入到ByteBuf
         switch (lengthFieldLength) {
         case 1:
             if (length >= 256) {
@@ -198,6 +221,8 @@ public class LengthFieldPrepender extends MessageToMessageEncoder<ByteBuf> {
         default:
             throw new Error("should not reach here");
         }
+        // 这里要添加一次引用计数器,因为在父类方法对msg进行了释放，这里要多引用一次
+        // ReferenceCountUtil.release(cast);
         out.add(msg.retain());
     }
 }

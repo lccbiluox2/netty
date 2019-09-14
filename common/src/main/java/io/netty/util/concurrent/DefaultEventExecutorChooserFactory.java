@@ -26,10 +26,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 @UnstableApi
 public final class DefaultEventExecutorChooserFactory implements EventExecutorChooserFactory {
 
+    /**
+     * 单例模式
+     */
     public static final DefaultEventExecutorChooserFactory INSTANCE = new DefaultEventExecutorChooserFactory();
 
     private DefaultEventExecutorChooserFactory() { }
 
+    /**
+     * 根据数组长度选择EventExecutorChooser实例
+     * @param executors
+     * @return
+     */
     @SuppressWarnings("unchecked")
     @Override
     public EventExecutorChooser newChooser(EventExecutor[] executors) {
@@ -41,6 +49,11 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
         }
     }
 
+    /**
+     * 判断是够是2的幂次
+     * @param val
+     * @return
+     */
     private static boolean isPowerOfTwo(int val) {
         return (val & -val) == val;
     }
@@ -56,6 +69,8 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
         /**
          * 先减
          * 做到从0开始，然后到结尾，然后循环
+         *
+         * 可并发的轮训算法，返回的值不会超过素组的长度  &运算效率较高
          * @return
          */
         @Override
@@ -74,6 +89,8 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
 
         /**
          * 做到从0开始，然后到结尾，然后循环
+         *
+         * 可并发的轮训算法，返回的值不会超过素组的长度,计数器不断自增 然后与素组长度取模 最后拿绝对值
          * @return
          */
         @Override

@@ -56,6 +56,13 @@ import java.util.Set;
  */
 public class FastThreadLocal<V> {
 
+    /**
+     * 获取InternalThreadLocalMap计数器的值,这个值是FastThreadLocal的静态变量，所有的FastThreadLocal都用这个值
+     * 在InternalThreadLocalMap有一个数组indexedVariables,那么indexedVariables[variablesToRemoveIndex] =
+     * Set<FastThreadLocal<?>>。
+     *
+     * 数组的variablesToRemoveIndex位置放一个SET，里面存储了全部的FastThreadLocal实例
+     */
     private static final int variablesToRemoveIndex = InternalThreadLocalMap.nextVariableIndex();
 
     /**
@@ -64,23 +71,30 @@ public class FastThreadLocal<V> {
      * manage.
      */
     public static void removeAll() {
+        // 获取线程内的InternalThreadLocalMap对象，如果存在就返回，不存在返回null
         InternalThreadLocalMap threadLocalMap = InternalThreadLocalMap.getIfSet();
         if (threadLocalMap == null) {
             return;
         }
 
         try {
+            // 根据variablesToRemoveIndex下标获取threadLocalMap内部indexedVariables素组中的对象
             Object v = threadLocalMap.indexedVariable(variablesToRemoveIndex);
+            // 如果不为空并且不等于UNSET，那么它一定是Set<FastThreadLocal<?>类型的对象
             if (v != null && v != InternalThreadLocalMap.UNSET) {
                 @SuppressWarnings("unchecked")
+                // 强制类型转换
                 Set<FastThreadLocal<?>> variablesToRemove = (Set<FastThreadLocal<?>>) v;
+                // 转换为数组
                 FastThreadLocal<?>[] variablesToRemoveArray =
                         variablesToRemove.toArray(new FastThreadLocal[0]);
+                // 循环调用tlv.remove
                 for (FastThreadLocal<?> tlv: variablesToRemoveArray) {
                     tlv.remove(threadLocalMap);
                 }
             }
         } finally {
+            // 移除当前线程关联的InternalThreadLocalMap对象
             InternalThreadLocalMap.remove();
         }
     }
@@ -109,40 +123,60 @@ public class FastThreadLocal<V> {
 
     @SuppressWarnings("unchecked")
     private static void addToVariablesToRemove(InternalThreadLocalMap threadLocalMap, FastThreadLocal<?> variable) {
+        //通过variablesToRemoveIndex值。获取threadLocalMap内部数组indexedVariables[variablesToRemoveIndex]对象
         Object v = threadLocalMap.indexedVariable(variablesToRemoveIndex);
         Set<FastThreadLocal<?>> variablesToRemove;
         if (v == InternalThreadLocalMap.UNSET || v == null) {
+            //如果返回空则创建一个set数据结构
             variablesToRemove = Collections.newSetFromMap(new IdentityHashMap<FastThreadLocal<?>, Boolean>());
+            //把threadLocalMap.indexedVariables[variablesToRemoveIndex]=set结构
             threadLocalMap.setIndexedVariable(variablesToRemoveIndex, variablesToRemove);
         } else {
+            //如果存在set则赋值给variablesToRemove
             variablesToRemove = (Set<FastThreadLocal<?>>) v;
         }
 
+        //把当前对象加入到set当中去
         variablesToRemove.add(variable);
     }
 
+    /**
+     * 	在threadLocalMap的数组中indexedVariables[variablesToRemoveIndex]内的Set<FastThreadLocal<?>>数据结构中移除自己
+     * @param threadLocalMap
+     * @param variable
+     */
     private static void removeFromVariablesToRemove(
             InternalThreadLocalMap threadLocalMap, FastThreadLocal<?> variable) {
 
+        // 根据variablesToRemoveIndex拿出threadLocalMap的indexedVariables数组中的Set<FastThreadLocal<?>>
         Object v = threadLocalMap.indexedVariable(variablesToRemoveIndex);
 
+        // 如果返回值为null则结束
         if (v == InternalThreadLocalMap.UNSET || v == null) {
             return;
         }
 
+        //转换为Set结构，移除自己this
         @SuppressWarnings("unchecked")
         Set<FastThreadLocal<?>> variablesToRemove = (Set<FastThreadLocal<?>>) v;
         variablesToRemove.remove(variable);
     }
 
+    /**
+     * 成员变量，通过InternalThreadLocalMap.nextVariableIndex()获取
+     * 每个FastThreadLocal的对象，index值都会++
+     */
     private final int index;
 
     public FastThreadLocal() {
+        // 获取index的值，每个FastThreadLocal对象index的值都会递增
         index = InternalThreadLocalMap.nextVariableIndex();
     }
 
     /**
      * Returns the current value for the current thread
+     *
+     * 从当前线程的InternalThreadLocalMap中获取对象
      */
     @SuppressWarnings("unchecked")
     public final V get() {
@@ -173,32 +207,48 @@ public class FastThreadLocal<V> {
     /**
      * Returns the current value for the specified thread local map.
      * The specified thread local map must be for the current thread.
+     *
+     * 获取对象
      */
     @SuppressWarnings("unchecked")
     public final V get(InternalThreadLocalMap threadLocalMap) {
+        // 获取threadLocalMap的indexedVariables[index]的对象
         Object v = threadLocalMap.indexedVariable(index);
+        // 如果不等于UNSET则返回
         if (v != InternalThreadLocalMap.UNSET) {
             return (V) v;
         }
 
+        // 否则初始化并设置对象
         return initialize(threadLocalMap);
     }
 
+    /**
+     * 初始化
+     *
+     * @param threadLocalMap
+     * @return
+     */
     private V initialize(InternalThreadLocalMap threadLocalMap) {
         V v = null;
         try {
+            //调用子类方法获取对象V
             v = initialValue();
         } catch (Exception e) {
             PlatformDependent.throwException(e);
         }
 
+        // 把V设置到threadLocalMap的indexedVariables[index]位置
         threadLocalMap.setIndexedVariable(index, v);
+        // 把自己加入到threadLocalMap的indexedVariables[variablesToRemoveIndex]位置的Set当中去
         addToVariablesToRemove(threadLocalMap, this);
         return v;
     }
 
     /**
      * Set the value for the current thread.
+     *
+     * 往当前线程的threadLocalMap的indexedVariables[index]位置设置对象
      */
     public final void set(V value) {
         if (value != InternalThreadLocalMap.UNSET) {
@@ -211,11 +261,15 @@ public class FastThreadLocal<V> {
 
     /**
      * Set the value for the specified thread local map. The specified thread local map must be for the current thread.
+     *
+     * 往threadLocalMap的indexedVariables[index]位置设置对象
      */
     public final void set(InternalThreadLocalMap threadLocalMap, V value) {
+        // 如果V不等于UNSET
         if (value != InternalThreadLocalMap.UNSET) {
             setKnownNotUnset(threadLocalMap, value);
         } else {
+            // 否则移除对象
             remove(threadLocalMap);
         }
     }
@@ -224,13 +278,17 @@ public class FastThreadLocal<V> {
      * @return see {@link InternalThreadLocalMap#setIndexedVariable(int, Object)}.
      */
     private void setKnownNotUnset(InternalThreadLocalMap threadLocalMap, V value) {
+        // 往threadLocalMap的indexedVariables[index]= value 设置对象
         if (threadLocalMap.setIndexedVariable(index, value)) {
+            // 把当前对象加入到【threadLocalMap.indexedVariables[variablesToRemoveIndex]=set】 set数据结构中
             addToVariablesToRemove(threadLocalMap, this);
         }
     }
 
     /**
      * Returns {@code true} if and only if this thread-local variable is set.
+     *
+     * 判断当前对象是否往threadLocalMap的indexedVariables数组中设置了值
      */
     public final boolean isSet() {
         return isSet(InternalThreadLocalMap.getIfSet());
@@ -239,6 +297,8 @@ public class FastThreadLocal<V> {
     /**
      * Returns {@code true} if and only if this thread-local variable is set.
      * The specified thread local map must be for the current thread.
+     *
+     * 判断当前对象是否往threadLocalMap的indexedVariables数组中设置了值
      */
     public final boolean isSet(InternalThreadLocalMap threadLocalMap) {
         return threadLocalMap != null && threadLocalMap.isIndexedVariableSet(index);
@@ -254,16 +314,23 @@ public class FastThreadLocal<V> {
      * Sets the value to uninitialized for the specified thread local map;
      * a proceeding call to get() will trigger a call to initialValue().
      * The specified thread local map must be for the current thread.
+     *
+     * 传入threadLocalMap对象
      */
     @SuppressWarnings("unchecked")
     public final void remove(InternalThreadLocalMap threadLocalMap) {
+        //如果threadLocalMap == null则返回
         if (threadLocalMap == null) {
             return;
         }
 
+        // 通过当前对象的index，在threadLocalMap的indexedVariables数组中清除对象
         Object v = threadLocalMap.removeIndexedVariable(index);
+        // 在threadLocalMap的数组中indexedVariables[variablesToRemoveIndex]内的Set<FastThreadLocal<?>>数据结构
+        // 中移除自己
         removeFromVariablesToRemove(threadLocalMap, this);
 
+        // 如果V不等于UNSET则出发一个事件
         if (v != InternalThreadLocalMap.UNSET) {
             try {
                 onRemoval((V) v);
@@ -275,6 +342,8 @@ public class FastThreadLocal<V> {
 
     /**
      * Returns the initial value for this thread-local variable.
+     *
+     * 子类重写
      */
     protected V initialValue() throws Exception {
         return null;
@@ -284,6 +353,8 @@ public class FastThreadLocal<V> {
      * Invoked when this thread local variable is removed by {@link #remove()}. Be aware that {@link #remove()}
      * is not guaranteed to be called when the `Thread` completes which means you can not depend on this for
      * cleanup of the resources in the case of `Thread` completion.
+     *
+     * 子类重写
      */
     protected void onRemoval(@SuppressWarnings("UnusedParameters") V value) throws Exception { }
 }

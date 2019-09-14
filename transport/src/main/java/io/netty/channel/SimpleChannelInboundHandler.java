@@ -52,6 +52,9 @@ import io.netty.util.internal.TypeParameterMatcher;
  */
 public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandlerAdapter {
 
+    /**
+     * 类型参数匹配器(ReflectiveMatcher)实例,匹配类定义中的类型I
+     */
     private final TypeParameterMatcher matcher;
     private final boolean autoRelease;
 
@@ -69,6 +72,7 @@ public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandl
      *                      {@link ReferenceCountUtil#release(Object)}.
      */
     protected SimpleChannelInboundHandler(boolean autoRelease) {
+        //类型参数匹配器(ReflectiveMatcher)实例，匹配类定义中的类型I
         matcher = TypeParameterMatcher.find(this, SimpleChannelInboundHandler.class, "I");
         this.autoRelease = autoRelease;
     }
@@ -95,6 +99,8 @@ public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandl
     /**
      * Returns {@code true} if the given message should be handled. If {@code false} it will be passed to the next
      * {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
+     *
+     * 判断msg是否是I类型或其子类
      */
     public boolean acceptInboundMessage(Object msg) throws Exception {
         return matcher.match(msg);
@@ -110,18 +116,22 @@ public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandl
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         boolean release = true;
         try {
+            //如果msg是I类型或它的子类
             if (acceptInboundMessage(msg)) {
                 /// 消息轻质转换
                 @SuppressWarnings("unchecked")
                 I imsg = (I) msg;
+                // TODO: 模板方法，抽出可变的部分，具体实现在子类中
                 channelRead0(ctx, imsg);
             } else {
+                //交给下一个handle
                 release = false;
                 ctx.fireChannelRead(msg);
             }
         } finally {
             if (autoRelease && release) {
                 // 对消息的引用计数减去1
+                // 释放资源(保存消息的ByteBuf)
                 ReferenceCountUtil.release(msg);
             }
         }

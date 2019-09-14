@@ -38,6 +38,8 @@ import java.util.WeakHashMap;
  *
  * 存储Netty和所有FastThreadLocal的线程局部变量的内部数据结构
  * 请注意，此类仅供内部使用，随时可能更改。 除非你知道你在做什么，否则使用 FastThreadLocal。
+ *
+ * 集成了UnpaddedInternalThreadLocalMap,内部包含了一个静态的threadlocal类slowThreadLocalMap和一些数据结构
  */
 public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap {
 
@@ -60,14 +62,25 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         logger.debug("-Dio.netty.threadLocalMap.stringBuilder.maxSize: {}", STRING_BUILDER_MAX_SIZE);
     }
 
+    /**
+     * 如果设置了就获取否则返回null
+     * @return
+     */
     public static InternalThreadLocalMap getIfSet() {
+        // 拿到当前线程
         Thread thread = Thread.currentThread();
+        // 如果是FastThreadLocalThread类型，则直接获取InternalThreadLocalMap对象
         if (thread instanceof FastThreadLocalThread) {
             return ((FastThreadLocalThread) thread).threadLocalMap();
         }
+        // 否则上ThreadLocal获取
         return slowThreadLocalMap.get();
     }
 
+    /**
+     * 获取InternalThreadLocalMap对象，没有就创建一个
+     * @return
+     */
     public static InternalThreadLocalMap get() {
         Thread thread = Thread.currentThread();
         if (thread instanceof FastThreadLocalThread) {
@@ -78,7 +91,9 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     }
 
     private static InternalThreadLocalMap fastGet(FastThreadLocalThread thread) {
+        //获取线程的成员变量threadLocalMap();
         InternalThreadLocalMap threadLocalMap = thread.threadLocalMap();
+        //如果为空则创建一个新的设置到线程当中
         if (threadLocalMap == null) {
             thread.setThreadLocalMap(threadLocalMap = new InternalThreadLocalMap());
         }
@@ -86,8 +101,10 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     }
 
     private static InternalThreadLocalMap slowGet() {
+        //在ThreadLocal当中获取InternalThreadLocalMap对象
         ThreadLocal<InternalThreadLocalMap> slowThreadLocalMap = UnpaddedInternalThreadLocalMap.slowThreadLocalMap;
         InternalThreadLocalMap ret = slowThreadLocalMap.get();
+        //如果为null则创建一个新的设置到ThreadLocal当中并返回
         if (ret == null) {
             ret = new InternalThreadLocalMap();
             slowThreadLocalMap.set(ret);
@@ -95,28 +112,47 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return ret;
     }
 
+    /**
+     * 移除InternalThreadLocalMap
+     */
     public static void remove() {
+        // 获取当前线程
         Thread thread = Thread.currentThread();
+        // 如果是FastThreadLocalThread类型则直接把成员变量设置为null
         if (thread instanceof FastThreadLocalThread) {
             ((FastThreadLocalThread) thread).setThreadLocalMap(null);
         } else {
+            // 在ThreadLocal当中移除
             slowThreadLocalMap.remove();
         }
     }
 
+    /**
+     * 在ThreadLocal当中移除
+     */
     public static void destroy() {
         slowThreadLocalMap.remove();
     }
 
+    /**
+     * 计数器++
+     * @return
+     */
     public static int nextVariableIndex() {
         int index = nextIndex.getAndIncrement();
+        //如果为负数说明已经++到Int的最大值
         if (index < 0) {
+            //计数器-- 后抛出异常
             nextIndex.decrementAndGet();
             throw new IllegalStateException("too many thread-local indexed variables");
         }
         return index;
     }
 
+    /**
+     * 获取最后一个变量的index
+     * @return
+     */
     public static int lastVariableIndex() {
         return nextIndex.get() - 1;
     }
@@ -125,16 +161,27 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     // With CompressedOops enabled, an instance of this class should occupy at least 128 bytes.
     public long rp1, rp2, rp3, rp4, rp5, rp6, rp7, rp8, rp9;
 
+    /**
+     * 构造参数 传入32个长度的数组里面全部都是相同的object引用
+     */
     private InternalThreadLocalMap() {
         super(newIndexedVariableTable());
     }
 
+    /**
+     * 创建一个32长队数组，里面全部引用一个相同的object对象
+     * @return
+     */
     private static Object[] newIndexedVariableTable() {
         Object[] array = new Object[32];
         Arrays.fill(array, UNSET);
         return array;
     }
 
+    /**
+     * 统计数量
+     * @return
+     */
     public int size() {
         int count = 0;
 
@@ -183,19 +230,31 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return count - 1;
     }
 
+    /**
+     * 返回StringBuilder
+     * @return
+     */
     public StringBuilder stringBuilder() {
         StringBuilder sb = stringBuilder;
         if (sb == null) {
+            // 没有则新创建一个返回 STRING_BUILDER_INITIAL_SIZE=初始容量
             return stringBuilder = new StringBuilder(STRING_BUILDER_INITIAL_SIZE);
         }
+        // 如果之前存在sb， 则判断容量是否 大于 STRING_BUILDER_MAX_SIZE
         if (sb.capacity() > STRING_BUILDER_MAX_SIZE) {
+            // 长度设置为初始容量
             sb.setLength(STRING_BUILDER_INITIAL_SIZE);
             sb.trimToSize();
         }
+        // 把长度设置为0，相当于清空sb
         sb.setLength(0);
         return sb;
     }
 
+    /**
+     * 返回Map<Charset, CharsetEncoder>没有则创建
+     * @return
+     */
     public Map<Charset, CharsetEncoder> charsetEncoderCache() {
         Map<Charset, CharsetEncoder> cache = charsetEncoderCache;
         if (cache == null) {
@@ -204,6 +263,10 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return cache;
     }
 
+    /**
+     * 返回Map<Charset, CharsetDecoder>没有则创建
+     * @return
+     */
     public Map<Charset, CharsetDecoder> charsetDecoderCache() {
         Map<Charset, CharsetDecoder> cache = charsetDecoderCache;
         if (cache == null) {
@@ -212,6 +275,11 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return cache;
     }
 
+    /**
+     * 返回一个minCapacity大小的list
+     * @param <E>
+     * @return
+     */
     public <E> ArrayList<E> arrayList() {
         return arrayList(DEFAULT_ARRAY_LIST_INITIAL_CAPACITY);
     }
@@ -236,6 +304,10 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         this.futureListenerStackDepth = futureListenerStackDepth;
     }
 
+    /**
+     * 获得线程的Random对象
+     * @return
+     */
     public ThreadLocalRandom random() {
         ThreadLocalRandom r = random;
         if (r == null) {
@@ -294,14 +366,22 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
 
     /**
      * @return {@code true} if and only if a new thread-local variable has been created
+     *
+     * 存储对象
      */
     public boolean setIndexedVariable(int index, Object value) {
+        //对象数组
         Object[] lookup = indexedVariables;
+        //判断下标小于数组长度
         if (index < lookup.length) {
+            //拿出旧值
             Object oldValue = lookup[index];
+            //设置新值
             lookup[index] = value;
+            //判断oldValue == UNSET第一次设置
             return oldValue == UNSET;
         } else {
+            //下标大于数组长度需要扩容
             expandIndexedVariableTableAndSet(index, value);
             return true;
         }
@@ -309,7 +389,13 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
 
     private void expandIndexedVariableTableAndSet(int index, Object value) {
         Object[] oldArray = indexedVariables;
+        /**
+         * 旧数组长度
+         */
         final int oldCapacity = oldArray.length;
+        /**
+         * 根据index扩容
+         */
         int newCapacity = index;
         newCapacity |= newCapacity >>>  1;
         newCapacity |= newCapacity >>>  2;
@@ -318,12 +404,25 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         newCapacity |= newCapacity >>> 16;
         newCapacity ++;
 
+        /**
+         * 把旧数组拷贝到新数组
+         */
         Object[] newArray = Arrays.copyOf(oldArray, newCapacity);
+        /**
+         * 其余位置全部设置为UNSET
+         */
         Arrays.fill(newArray, oldCapacity, newArray.length, UNSET);
+        // 设置值
         newArray[index] = value;
+        // 更新成员变量
         indexedVariables = newArray;
     }
 
+    /**
+     * 移除对象
+     * @param index
+     * @return
+     */
     public Object removeIndexedVariable(int index) {
         Object[] lookup = indexedVariables;
         if (index < lookup.length) {

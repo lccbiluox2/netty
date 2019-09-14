@@ -26,6 +26,9 @@ package io.netty.util;
 @SuppressWarnings("UnusedDeclaration") // 'T' is used only at compile time
 public final class AttributeKey<T> extends AbstractConstant<AttributeKey<T>> {
 
+    /**
+     * 池对象，重写了newConstant方法，创建AttributeKey对象
+     */
     private static final ConstantPool<AttributeKey<Object>> pool = new ConstantPool<AttributeKey<Object>>() {
         @Override
         protected AttributeKey<Object> newConstant(int id, String name) {
@@ -35,6 +38,8 @@ public final class AttributeKey<T> extends AbstractConstant<AttributeKey<T>> {
 
     /**
      * Returns the singleton instance of the {@link AttributeKey} which has the specified {@code name}.
+     *
+     * 根据name从池中获取AttributeKey对象，相同name返回相同的AttributeKey
      */
     @SuppressWarnings("unchecked")
     public static <T> AttributeKey<T> valueOf(String name) {
@@ -43,6 +48,8 @@ public final class AttributeKey<T> extends AbstractConstant<AttributeKey<T>> {
 
     /**
      * Returns {@code true} if a {@link AttributeKey} exists for the given {@code name}.
+     *
+     * 根据name从池中判断name关联的对象是否存在
      */
     public static boolean exists(String name) {
         return pool.exists(name);
@@ -51,6 +58,8 @@ public final class AttributeKey<T> extends AbstractConstant<AttributeKey<T>> {
     /**
      * Creates a new {@link AttributeKey} for the given {@code name} or fail with an
      * {@link IllegalArgumentException} if a {@link AttributeKey} for the given {@code name} exists.
+     *
+     * 根据name创建新对象，如果name关联旧对象直接抛异常
      */
     @SuppressWarnings("unchecked")
     public static <T> AttributeKey<T> newInstance(String name) {

@@ -28,11 +28,18 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <T> the type of the constant
  *
  * 一个常量池。T 代表的是常量的类型。给常量一个名字和一个ID
+ * 一个池对象，内部只能存放Constant类型
  */
 public abstract class ConstantPool<T extends Constant<T>> {
 
+    /**
+     * 线程安全的MAP
+     */
     private final ConcurrentMap<String, T> constants = PlatformDependent.newConcurrentHashMap();
 
+    /**
+     * 线程安全原子自增计数器
+     */
     private final AtomicInteger nextId = new AtomicInteger(1);
 
     /**
@@ -70,20 +77,29 @@ public abstract class ConstantPool<T extends Constant<T>> {
      * 根据 name 获取已存在的常量 或者 如果不存在则创建一个新的，线程安全
      */
     private T getOrCreate(String name) {
+        //根据name在map中查询
         T constant = constants.get(name);
+        //如果为空
         if (constant == null) {
+            //则调用抽象方法传入自增ID和名称创建对象
             final T tempConstant = newConstant(nextId(), name);
+            //把创建好的对象放入map中缓存，以name作为key
             constant = constants.putIfAbsent(name, tempConstant);
+            //这里说明name做key 之前并没有数据
             if (constant == null) {
+                //返回新创建的对象
                 return tempConstant;
             }
         }
 
+        //返回旧数据
         return constant;
     }
 
     /**
      * Returns {@code true} if a {@link AttributeKey} exists for the given {@code name}.
+     *
+     * 判断name当key是否在map当中
      */
     public boolean exists(String name) {
         checkNotNullAndNotEmpty(name);
@@ -93,6 +109,8 @@ public abstract class ConstantPool<T extends Constant<T>> {
     /**
      * Creates a new {@link Constant} for the given {@code name} or fail with an
      * {@link IllegalArgumentException} if a {@link Constant} for the given {@code name} exists.
+     *
+     * 创建一个对象，如果之前name在map当中存在旧值则抛出异常
      */
     public T newInstance(String name) {
         checkNotNullAndNotEmpty(name);
@@ -120,6 +138,7 @@ public abstract class ConstantPool<T extends Constant<T>> {
             }
         }
 
+        //逻辑与getOrCreate类似，区别就是当map当中以name为key存在旧值则直接抛异常
         throw new IllegalArgumentException(String.format("'%s' is already in use", name));
     }
 
