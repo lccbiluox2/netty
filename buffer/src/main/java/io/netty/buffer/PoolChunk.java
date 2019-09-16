@@ -117,8 +117,10 @@ import java.util.Deque;
  *
  * memoryMap[id]= depth_of_id  is defined above
  * depthMap[id]= x  indicates that the first node which is free to be allocated is at depth x (from root)
+ *
+ * Chunk = 块
+ * PoolChunk ：用来组织和管理栋哥page的内存分配和释放，默认为16MB.
  */
-// Chunk = 块
 final class PoolChunk<T> implements PoolChunkMetric {
 
     private static final int INTEGER_SIZE_MINUS_ONE = Integer.SIZE - 1;

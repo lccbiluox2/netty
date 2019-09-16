@@ -91,7 +91,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         }
 
         if (executor == null) {
-            // 创建一个线程执行器
+            // 创建一个线程执行器，每个任务的执行器
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
 
@@ -100,7 +100,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
-                // 使用模板方法newChild实例化一个线程
+                // TODO: 使用模板方法newChild实例化一个线程
                 children[i] = newChild(executor, args);
                 success = true;
             } catch (Exception e) {

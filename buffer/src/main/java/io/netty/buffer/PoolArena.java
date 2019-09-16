@@ -30,8 +30,12 @@ import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 import static java.lang.Math.max;
 
 /**
+ * PoolArena：代表内存中一大块连续的区域，PoolArena由多个Chunk组成，每个Chunk由多个Page组成，为了提升并发性能。
+ * 内存池中包含一组PooledArena。
+ *
  * Arena代表1个内存区域，为了优化内存区域的并发访问，netty中内存池是由多个Arena组成的数组，
  * 分配时会每个线程按照轮询策略选择1个Arena进行内存分配
+ *
  */
 abstract class PoolArena<T> implements PoolArenaMetric {
     static final boolean HAS_UNSAFE = PlatformDependent.hasUnsafe();
@@ -222,7 +226,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
      * @return
      */
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
+        //拿到PooledByteBuf对象,仅仅是一个对象
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
+        //从cache种分配内存，并初始化buf种内存地址相关的属性
         allocate(cache, buf, reqCapacity);
         return buf;
     }
@@ -953,6 +959,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         @Override
         protected PooledByteBuf<ByteBuffer> newByteBuf(int maxCapacity) {
             if (HAS_UNSAFE) {
+                //获取一个PooledByteBuf
                 return PooledUnsafeDirectByteBuf.newInstance(maxCapacity);
             } else {
                 return PooledDirectByteBuf.newInstance(maxCapacity);

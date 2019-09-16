@@ -196,10 +196,15 @@ public abstract class Recycler<T> {
         // 拿到当前线程对应的stack
         Stack<T> stack = threadLocal.get();
         // 从stack中pop出一个元素
+        //从栈顶拿出一个来DefaultHandle（回收处理器）
+        //DefaultHandle持有一个value，其实是PooledUnsafeDirectByteBuf
         DefaultHandle<T> handle = stack.pop();
+        //没有回收处理器，说明没有闲置的ByteBuf
         if (handle == null) {
             // 创建一个新的实例
             handle = stack.newHandle();
+            //回调，还记得么？该回调返回一个PooledUnsafeDirectByteBuf
+            //让处理器持有一个新的PooledUnsafeDirectByteBuf
             handle.value = newObject(handle);
         }
         // 不为空则返回

@@ -22,6 +22,24 @@ package io.netty.buffer;
  * <p>
  * 每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分,
  * 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配
+ *
+ *  PoolSubpage: 对于小于一个Page的内存，Netty 在Page中完成分配。每个Page
+ *  会被切分成大小相等的多个存储块，存储块的大小由第-次申请的内存块大小决定。假如
+ *  一个Page是8字节，如果第一次申请的块大小是4字节，那么这个Page就包含两个存储
+ *  块;如果第一次申请的块大小是8字节，那么这个Page就被分成-一个存储块。一个Page
+ *  只能用于分配与第一次申请时大小相同的内存，比如，一个4字节的Page,如果第一次分
+ *  配了1字节的内存，那么后面这个Page只能继续分配1字节的内存，如果有一个申请2
+ *  字节内存的请求，就需要在新的Page中进行分配。
+ *
+ *  内存池的内存分配从PooledArena开始，-个PooledArena包含多个Chunk ( PoolChunk),
+ *  Chunk具体负责内存的分配和回收。每个Chunk包含多个Page(PoolSubpage),每个Page
+ *  由大小相等的块( Region)组成,每个Page块大小由第一次从Page申请的内存大小决定,
+ *  某个Page中的块大小是相等的。PoolChunk 默认为16MB，包含2048个Page，每个Page
+ *  为8KB。
+ *
+ *  内存分配策略:通过PooledByteBufAllocator申请内存时，首先从PoolThreadLocalCache
+ *  中获取与线程绑定的缓存池PoolThreadCache，如果不存在线程私有缓存池，则轮询分配
+ *  一个Arean数组中的PooledArena，创建--个新的PoolThreadCache作为缓存池使用。
  */
 final class PoolSubpage<T> implements PoolSubpageMetric {
 

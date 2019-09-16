@@ -68,6 +68,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
      * SelectorProvider.provider() ： 返回一个 SelectorProvider
      */
     public NioEventLoopGroup(int nThreads, ThreadFactory threadFactory) {
+        //从jdk地层中获取了一个SelectorProvider
         this(nThreads, threadFactory, SelectorProvider.provider());
     }
 
@@ -81,11 +82,13 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
      */
     public NioEventLoopGroup(
             int nThreads, ThreadFactory threadFactory, final SelectorProvider selectorProvider) {
+        //接着提供了一种默认的SelectStrategy工厂
         this(nThreads, threadFactory, selectorProvider, DefaultSelectStrategyFactory.INSTANCE);
     }
 
     public NioEventLoopGroup(int nThreads, ThreadFactory threadFactory,
         final SelectorProvider selectorProvider, final SelectStrategyFactory selectStrategyFactory) {
+        //提供了一种拒绝执行的异常处理器
         super(nThreads, threadFactory, selectorProvider, selectStrategyFactory, RejectedExecutionHandlers.reject());
     }
 
