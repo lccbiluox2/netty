@@ -32,6 +32,8 @@ import java.io.Serializable;
  * compatible with the standard {@link ObjectInputStream}.  Please use
  * {@link ObjectDecoder} or {@link ObjectDecoderInputStream} to ensure the
  * interoperability with this encoder.
+ *
+ * TODO： 基于 JDK 序列化来使用自定义序列化编码。外部依赖被排除在外时，提供了一个速度提升。否则选择其他序列化实现
  */
 @Sharable
 public class ObjectEncoder extends MessageToByteEncoder<Serializable> {

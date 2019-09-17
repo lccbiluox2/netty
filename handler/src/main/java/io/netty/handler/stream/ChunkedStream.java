@@ -31,6 +31,8 @@ import java.io.PushbackInputStream;
  * accurately as possible, rather than using the default implementation.
  * Otherwise, {@link ChunkedStream} will generate many too small chunks or
  * block unnecessarily often.
+ *
+ * TODO:从 InputStream 中一块一块的转移内容
  */
 public class ChunkedStream implements ChunkedInput<ByteBuf> {
 

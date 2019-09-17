@@ -32,6 +32,8 @@ import org.jboss.marshalling.Marshaller;
  *
  * Use {@link MarshallingEncoder} if possible.
  *
+ * TODO: 为了与使用 JDK 序列化的端对端间兼容。
+ *
  */
 @Sharable
 public class CompatibleMarshallingEncoder extends MessageToByteEncoder<Object> {

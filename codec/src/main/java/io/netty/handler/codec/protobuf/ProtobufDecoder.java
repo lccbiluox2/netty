@@ -61,6 +61,8 @@ import java.util.List;
  *     ch.write(res);
  * }
  * </pre>
+ *
+ * TODO：使用 ProtoBuf 来解码消息
  */
 @Sharable
 public class ProtobufDecoder extends MessageToMessageDecoder<ByteBuf> {

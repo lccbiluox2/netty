@@ -31,6 +31,8 @@ import java.io.Serializable;
  * <p>
  * This encoder is interoperable with the standard Java object streams such as
  * {@link ObjectInputStream} and {@link ObjectOutputStream}.
+ *
+ * TODO：该编码器使用 JDK 序列化，用于与非 Netty 进行互操作。
  */
 public class CompatibleObjectEncoder extends MessageToByteEncoder<Serializable> {
     private final int resetInterval;

@@ -58,6 +58,11 @@ import java.util.concurrent.TimeUnit;
  * </pre>
  * @see WriteTimeoutHandler
  * @see IdleStateHandler
+ *
+ * TODO: 在指定的时间间隔内没有接收到入站数据则会抛出 ReadTimeoutException 并关闭 Channel。ReadTimeoutException 可以通过覆盖
+ * ChannelHandler 的 exceptionCaught(…) 方法检测到
+ *
+ *
  */
 public class ReadTimeoutHandler extends IdleStateHandler {
     private boolean closed;

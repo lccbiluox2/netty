@@ -29,6 +29,8 @@ import java.io.StreamCorruptedException;
  * A {@link LengthFieldBasedFrameDecoder} which use an {@link Unmarshaller} to read the Object out
  * of the {@link ByteBuf}.
  *
+ * TODO:使用自定义序列化用于解码，必须使用
+ *
  */
 public class MarshallingDecoder extends LengthFieldBasedFrameDecoder {
 

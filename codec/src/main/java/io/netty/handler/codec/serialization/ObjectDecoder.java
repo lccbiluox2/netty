@@ -35,6 +35,8 @@ import java.io.StreamCorruptedException;
  *
  * 继承LengthFieldBasedFrameDecoder
  * 0, 4, 0, 4  长度字段为4个字节  读取消息后跳过4个字节
+ *
+ * TODO： 基于 JDK 序列化来使用自定义序列化解码。外部依赖被排除在外时，提供了一个速度提升。否则选择其他序列化实现
  */
 public class ObjectDecoder extends LengthFieldBasedFrameDecoder {
 

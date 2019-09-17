@@ -32,6 +32,8 @@ import java.nio.channels.FileChannel;
  * If your operating system supports
  * <a href="http://en.wikipedia.org/wiki/Zero-copy">zero-copy file transfer</a>
  * such as {@code sendfile()}, you might want to use {@link FileRegion} instead.
+ *
+ * TODO: 与 ChunkedFile 类似，处理使用了NIOFileChannel
  */
 public class ChunkedNioFile implements ChunkedInput<ByteBuf> {
 

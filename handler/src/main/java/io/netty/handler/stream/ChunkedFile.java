@@ -30,6 +30,8 @@ import java.io.RandomAccessFile;
  * If your operating system supports
  * <a href="http://en.wikipedia.org/wiki/Zero-copy">zero-copy file transfer</a>
  * such as {@code sendfile()}, you might want to use {@link FileRegion} instead.
+ *
+ * TODO : 当你使用平台不支持 zero-copy 或者你需要转换数据，从文件中一块一块的获取数据
  */
 public class ChunkedFile implements ChunkedInput<ByteBuf> {
 

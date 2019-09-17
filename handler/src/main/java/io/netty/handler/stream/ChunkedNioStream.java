@@ -26,6 +26,8 @@ import java.nio.channels.ReadableByteChannel;
  * A {@link ChunkedInput} that fetches data from a {@link ReadableByteChannel}
  * chunk by chunk.  Please note that the {@link ReadableByteChannel} must
  * operate in blocking mode.  Non-blocking mode channels are not supported.
+ *
+ * TODO:从 ReadableByteChannel 中一块一块的转移内容
  */
 public class ChunkedNioStream implements ChunkedInput<ByteBuf> {
 

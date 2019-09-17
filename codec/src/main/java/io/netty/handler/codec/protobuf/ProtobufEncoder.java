@@ -57,6 +57,8 @@ import static io.netty.buffer.Unpooled.*;
  *     ch.write(res);
  * }
  * </pre>
+ *
+ * TODO:使用 ProtoBuf 来编码消息
  */
 @Sharable
 public class ProtobufEncoder extends MessageToMessageEncoder<MessageLiteOrBuilder> {

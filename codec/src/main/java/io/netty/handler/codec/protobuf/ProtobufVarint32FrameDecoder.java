@@ -39,6 +39,8 @@ import java.util.List;
  *
  * @see CodedInputStream
  * @see CodedInputByteBufferNano
+ *
+ * TODO: 在消息的整型长度域中，通过 "Base 128 Varints"将接收到的 ByteBuf 动态的分割
  */
 public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
 

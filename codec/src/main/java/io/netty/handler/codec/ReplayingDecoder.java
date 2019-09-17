@@ -316,6 +316,9 @@ import java.util.List;
  * ReplayingDecoder可以重复解码的解码器，此类的核心原理是内部包含了一个ReplayingDecoderByteBuf，当读取字节不够时则抛出
  * 异常，ReplayingDecoder捕获异常还原读取readerIndex然后等待Netty下一次事件继续读取。
  *
+ * TODO : ReplayingDecoder 是 byte-to-message 解码的一种特殊的抽象基类，读取缓冲区的数据之前需要检查缓冲区是否有足够的字节，
+ *        使用ReplayingDecoder就无需自己检查；若ByteBuf中有足够的字节，则会正常读取；若没有足够的字节则会停止解码。
+ *
  */
 public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
 

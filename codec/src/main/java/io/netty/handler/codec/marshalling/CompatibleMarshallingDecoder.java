@@ -30,6 +30,8 @@ import java.util.List;
  * {@link ReplayingDecoder} which use an {@link Unmarshaller} to read the Object out of the {@link ByteBuf}.
  *
  * If you can you should use {@link MarshallingDecoder}.
+ *
+ * TODO : 为了与使用 JDK 序列化的端对端间兼容。
  */
 public class CompatibleMarshallingDecoder extends ReplayingDecoder<Void> {
     protected final UnmarshallerProvider provider;

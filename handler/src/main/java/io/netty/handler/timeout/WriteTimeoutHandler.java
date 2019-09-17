@@ -61,6 +61,8 @@ import java.util.concurrent.TimeUnit;
  * </pre>
  * @see ReadTimeoutHandler
  * @see IdleStateHandler
+ *
+ * TODO: WriteTimeoutException 可以通过覆盖 ChannelHandler 的 exceptionCaught(…) 方法检测到。
  */
 public class WriteTimeoutHandler extends ChannelOutboundHandlerAdapter {
     private static final long MIN_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
