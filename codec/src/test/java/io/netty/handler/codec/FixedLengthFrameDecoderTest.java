@@ -2,7 +2,10 @@ package io.netty.handler.codec;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.AbstractChannel;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -14,6 +17,8 @@ import org.junit.Test;
  * Update Date Time:
  */
 public class FixedLengthFrameDecoderTest {
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(FixedLengthFrameDecoderTest.class);
 
     @Test
     public void testFramesDecoded() {
@@ -30,7 +35,10 @@ public class FixedLengthFrameDecoderTest {
         Assert.assertFalse(channel.writeInbound(input.readBytes(2)));
         Assert.assertTrue(channel.writeInbound(input.readBytes(7)));
 
+        logger.info("是否完成："+channel.finish());
         Assert.assertTrue(channel.finish());  //5
+
+
         ByteBuf read = (ByteBuf) channel.readInbound();
         Assert.assertEquals(buf.readSlice(3), read);
         read.release();

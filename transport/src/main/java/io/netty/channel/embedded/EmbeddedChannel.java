@@ -48,6 +48,12 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  * Base class for {@link Channel} implementations that are used in an embedded fashion.
  *
  * 用于以嵌入式方式使用的{@link Channel}实现的基类。
+ *
+ * Netty提供了- ~种额外的传输，使得你可以将- -组ChannelHandler作为帮助器类嵌人到其他的ChannelHandler内部。
+ * 通过这种方式,你将可以扩展一个ChannelHandler的功能，而又不需要修改其内部代码。
+ *
+ * 这个想法是直截了当的:将人站数据或者出站数据写人到EmbeddedChannel中，然后检查是否有任何东西到达了ChannelPipeline的尾端。
+ * 以这种方式，你便可以确定消息是否已经被编码或者被解码过了，以及是否触发了任何的ChannelHandler动作。
  */
 public class EmbeddedChannel extends AbstractChannel {
 
@@ -99,7 +105,7 @@ public class EmbeddedChannel extends AbstractChannel {
      *
      * @param handlers the {@link ChannelHandler}s which will be add in the {@link ChannelPipeline}
      */
-    public EmbeddedChannel(ChannelHandler... handlers) {
+    public  EmbeddedChannel(ChannelHandler... handlers) {
         this(EmbeddedChannelId.INSTANCE, handlers);
     }
 
